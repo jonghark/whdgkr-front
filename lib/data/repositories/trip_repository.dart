@@ -116,7 +116,7 @@ class TripRepository {
   Future<void> deleteExpense(int expenseId) async {
     try {
       debugPrint('[TripRepository.deleteExpense] API call: expenseId=$expenseId');
-      await _apiClient.dio.delete('/expenses/$expenseId');
+      await _apiClient.dio.delete('/trips/expenses/$expenseId');
       debugPrint('[TripRepository.deleteExpense] Success');
     } catch (e, stackTrace) {
       _logError('deleteExpense', e, stackTrace);
@@ -127,7 +127,7 @@ class TripRepository {
   Future<Expense> updateExpense(int expenseId, Map<String, dynamic> expenseData) async {
     try {
       debugPrint('[TripRepository.updateExpense] API call: expenseId=$expenseId, data=$expenseData');
-      final response = await _apiClient.dio.put('/expenses/$expenseId', data: expenseData);
+      final response = await _apiClient.dio.put('/trips/expenses/$expenseId', data: expenseData);
       debugPrint('[TripRepository.updateExpense] Success: ${response.data}');
       return Expense.fromJson(response.data);
     } catch (e, stackTrace) {

@@ -167,7 +167,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       ),
       body: tripAsync.when(
         data: (trip) {
-          // 활성 참가자만 필터링
+          // 활성 동행자만 필터링
           final activeParticipants = trip.activeParticipants;
 
           // 초기화

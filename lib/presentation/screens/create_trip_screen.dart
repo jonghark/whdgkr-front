@@ -85,7 +85,7 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
     if (participantsList.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('참가자를 한 명 이상 추가해주세요'),
+          content: Text('동행자를 한 명 이상 추가해주세요'),
           backgroundColor: AppTheme.negativeRed,
         ),
       );
@@ -288,7 +288,7 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
                             ),
                             const SizedBox(width: 12),
                             const Text(
-                              '참가자',
+                              '동행자',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -367,7 +367,7 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
                               controller: participant.nameController,
                               decoration: InputDecoration(
                                 labelText: '이름 *',
-                                hintText: '참가자 이름',
+                                hintText: '동행자 이름',
                                 prefixIcon: CircleAvatar(
                                   radius: 16,
                                   backgroundColor: AppTheme.lightGreen,

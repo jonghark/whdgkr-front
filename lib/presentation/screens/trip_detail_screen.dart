@@ -17,19 +17,14 @@ class TripDetailScreen extends ConsumerWidget {
 
   const TripDetailScreen({super.key, required this.tripId});
 
-  String _formatAmount(int amount) {
-    return amount.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
-  }
-
-  void _showParticipantManagement(BuildContext context, WidgetRef ref, Trip trip) {
+  void _showCompanionManagement(BuildContext context, WidgetRef ref, Trip trip) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => ParticipantManagementSheet(tripId: tripId, trip: trip),
+      builder: (context) => CompanionManagementSheet(tripId: tripId, trip: trip),
     );
   }
 
@@ -43,17 +38,8 @@ class TripDetailScreen extends ConsumerWidget {
         title: const Text('여행 상세', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.people_outline),
-            tooltip: '참가자 관리',
-            onPressed: () {
-              final trip = tripAsync.valueOrNull;
-              if (trip != null) {
-                _showParticipantManagement(context, ref, trip);
-              }
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.calculate_outlined),
+            tooltip: '정산 상세',
             onPressed: () {
               context.push('/trip/$tripId/settlement');
             },
@@ -63,7 +49,7 @@ class TripDetailScreen extends ConsumerWidget {
       body: tripAsync.when(
         data: (trip) {
           final dateFormat = DateFormat('yyyy-MM-dd');
-          final activeParticipants = trip.activeParticipants;
+          final activeCompanions = trip.activeParticipants;
 
           return SafeArea(
             child: SingleChildScrollView(
@@ -71,378 +57,476 @@ class TripDetailScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-              // Trip Header Card
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppTheme.primaryGreen, AppTheme.darkGreen],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                  // Trip Header Card
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppTheme.primaryGreen, AppTheme.darkGreen],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.card_travel,
-                              color: Colors.white,
-                              size: 32,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  trip.name,
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${dateFormat.format(trip.startDate)} - ${dateFormat.format(trip.endDate)}',
+                                child: const Icon(
+                                  Icons.card_travel,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      trip.name,
+                                      style: const TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${dateFormat.format(trip.startDate)} - ${dateFormat.format(trip.endDate)}',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.white.withValues(alpha: 0.9),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          // Owner info
+                          if (trip.owner != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.star, color: Colors.amber, size: 18),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Owner: ${trip.owner!.name}',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white.withValues(alpha: 0.9),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          // Companions row with management button
+                          Row(
+                            children: [
+                              const Icon(Icons.people, color: Colors.white, size: 18),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  '동행자 ${activeCompanions.length}명: ${activeCompanions.map((p) => p.name).join(", ")}',
                                   style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 13,
+                                    color: Colors.white.withValues(alpha: 0.9),
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      // Owner info
-                      if (trip.owner != null)
-                        Row(
-                          children: [
-                            const Icon(Icons.star, color: Colors.amber, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Owner: ${trip.owner!.name}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white.withOpacity(0.9),
                               ),
-                            ),
-                          ],
-                        ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.people, color: Colors.white, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              '${activeParticipants.length}명 참가: ${activeParticipants.map((p) => p.name).join(", ")}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.white.withOpacity(0.9),
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Summary Cards with Settlement Data
-              settlementAsync.when(
-                data: (settlement) {
-                  return Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        // Total Expense Card
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(12),
+                              const SizedBox(width: 8),
+                              InkWell(
+                                onTap: () => _showCompanionManagement(context, ref, trip),
+                                borderRadius: BorderRadius.circular(16),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.lightGreen,
-                                    borderRadius: BorderRadius.circular(12),
+                                    color: Colors.white.withValues(alpha: 0.25),
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
-                                  child: const Icon(
-                                    Icons.receipt_long,
-                                    color: AppTheme.primaryGreen,
-                                    size: 28,
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.settings, color: Colors.white, size: 14),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        '관리',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(width: 16),
-                                Expanded(
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Settlement Summary & Expense Cards
+                  settlementAsync.when(
+                    data: (settlement) {
+                      final needsSettlement = settlement.balances.where((b) => b.netBalance != 0).length;
+
+                      return Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          children: [
+                            // Total Expense Card
+                            Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.lightGreen,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.receipt_long,
+                                        color: AppTheme.primaryGreen,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            '총 지출',
+                                            style: TextStyle(fontSize: 13, color: Colors.grey),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${settlement.formattedTotalExpense}원',
+                                            style: const TextStyle(
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppTheme.primaryGreen,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+
+                            // Settlement Summary Card (NEW)
+                            if (settlement.balances.isNotEmpty)
+                              Card(
+                                color: needsSettlement > 0 ? Colors.orange.shade50 : AppTheme.lightGreen,
+                                child: InkWell(
+                                  onTap: () => context.push('/trip/$tripId/settlement'),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: needsSettlement > 0
+                                                ? Colors.orange.shade100
+                                                : AppTheme.primaryGreen.withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Icon(
+                                            needsSettlement > 0 ? Icons.sync_alt : Icons.check_circle,
+                                            color: needsSettlement > 0 ? AppTheme.accentOrange : AppTheme.primaryGreen,
+                                            size: 24,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                needsSettlement > 0
+                                                    ? '정산이 필요해요!'
+                                                    : '정산 완료',
+                                                style: TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: needsSettlement > 0
+                                                      ? AppTheme.accentOrange
+                                                      : AppTheme.primaryGreen,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                needsSettlement > 0
+                                                    ? '$needsSettlement명이 정산을 기다리고 있어요'
+                                                    : '모든 동행자가 정산을 완료했어요',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Icon(
+                                          Icons.chevron_right,
+                                          color: Colors.grey[400],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 8),
+
+                            // Companion Balances
+                            if (settlement.balances.isNotEmpty) ...[
+                              Card(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Text(
-                                        '총 지출',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${settlement.formattedTotalExpense}원',
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppTheme.primaryGreen,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Participant Balances
-                        if (settlement.balances.isNotEmpty) ...[
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.lightGreen,
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: const Icon(
-                                          Icons.people,
-                                          color: AppTheme.primaryGreen,
-                                          size: 20,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      const Text(
-                                        '참여자별 정산',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  ...settlement.balances.map((balance) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(bottom: 12),
-                                      child: Row(
+                                      Row(
                                         children: [
-                                          CircleAvatar(
-                                            radius: 18,
-                                            backgroundColor: balance.isOwed
-                                                ? AppTheme.lightGreen
-                                                : (balance.isOwing ? Colors.orange.shade50 : Colors.grey.shade200),
-                                            child: Text(
-                                              balance.participantName[0],
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                                color: balance.isOwed
-                                                    ? AppTheme.primaryGreen
-                                                    : (balance.isOwing ? AppTheme.accentOrange : Colors.grey),
-                                              ),
+                                          Container(
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.lightGreen,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: const Icon(
+                                              Icons.people,
+                                              color: AppTheme.primaryGreen,
+                                              size: 18,
                                             ),
                                           ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  balance.participantName,
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                                Text(
-                                                  '지출: ${balance.formattedPaidTotal}원 / 부담: ${balance.formattedShareTotal}원',
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: Colors.grey[600],
-                                                  ),
-                                                ),
-                                              ],
+                                          const SizedBox(width: 10),
+                                          const Text(
+                                            '동행자별 정산',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
                                             ),
                                           ),
-                                          Column(
-                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      ...settlement.balances.map((balance) {
+                                        return Padding(
+                                          padding: const EdgeInsets.only(bottom: 10),
+                                          child: Row(
                                             children: [
-                                              Text(
-                                                '${balance.formattedNetBalance}원',
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: balance.isOwed
-                                                      ? AppTheme.positiveGreen
-                                                      : (balance.isOwing ? AppTheme.negativeRed : AppTheme.neutralGray),
-                                                ),
-                                              ),
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                decoration: BoxDecoration(
-                                                  color: balance.isOwed
-                                                      ? AppTheme.lightGreen
-                                                      : (balance.isOwing ? Colors.orange.shade50 : Colors.grey.shade200),
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
+                                              CircleAvatar(
+                                                radius: 16,
+                                                backgroundColor: balance.isOwed
+                                                    ? AppTheme.lightGreen
+                                                    : (balance.isOwing ? Colors.orange.shade50 : Colors.grey.shade200),
                                                 child: Text(
-                                                  balance.isOwed ? '받을 돈' : (balance.isOwing ? '보낼 돈' : '정산완료'),
+                                                  balance.participantName[0],
                                                   style: TextStyle(
-                                                    fontSize: 10,
                                                     fontWeight: FontWeight.bold,
+                                                    fontSize: 13,
                                                     color: balance.isOwed
                                                         ? AppTheme.primaryGreen
                                                         : (balance.isOwing ? AppTheme.accentOrange : Colors.grey),
                                                   ),
                                                 ),
                                               ),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      balance.participantName,
+                                                      style: const TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 13,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      '지출: ${balance.formattedPaidTotal}원 / 부담: ${balance.formattedShareTotal}원',
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        color: Colors.grey[600],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.end,
+                                                children: [
+                                                  Text(
+                                                    '${balance.formattedNetBalance}원',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: balance.isOwed
+                                                          ? AppTheme.positiveGreen
+                                                          : (balance.isOwing ? AppTheme.negativeRed : AppTheme.neutralGray),
+                                                    ),
+                                                  ),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                                    decoration: BoxDecoration(
+                                                      color: balance.isOwed
+                                                          ? AppTheme.lightGreen
+                                                          : (balance.isOwing ? Colors.orange.shade50 : Colors.grey.shade200),
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: Text(
+                                                      balance.isOwed ? '받을 돈' : (balance.isOwing ? '보낼 돈' : '정산완료'),
+                                                      style: TextStyle(
+                                                        fontSize: 9,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: balance.isOwed
+                                                            ? AppTheme.primaryGreen
+                                                            : (balance.isOwing ? AppTheme.accentOrange : Colors.grey),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ],
                                           ),
-                                        ],
-                                      ),
-                                    );
-                                  }),
-                                ],
+                                        );
+                                      }),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  );
-                },
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (error, stack) => Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          const Icon(Icons.receipt_long, color: AppTheme.primaryGreen, size: 32),
-                          const SizedBox(height: 8),
-                          const Text('총 지출', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                          const SizedBox(height: 4),
-                          const Text('0원', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Expenses List
-              if (trip.expenses.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 48),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.receipt_long_outlined,
-                        size: 64,
-                        color: Colors.grey[300],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        '지출 내역이 없습니다',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '+ 버튼을 눌러 첫 지출을 추가하세요',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[500],
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    children: trip.expenses.map((expense) {
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          onTap: () => context.push('/trip/$tripId/expense/${expense.id}'),
-                          leading: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppTheme.lightGreen,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.receipt,
-                              color: AppTheme.primaryGreen,
-                            ),
-                          ),
-                          title: Text(
-                            expense.title,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(
-                            DateFormat('yyyy-MM-dd').format(expense.occurredAt),
-                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                          ),
-                          trailing: Text(
-                            expense.formattedAmount,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: AppTheme.primaryGreen,
-                            ),
-                          ),
+                            ],
+                          ],
                         ),
                       );
-                    }).toList(),
+                    },
+                    loading: () => const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                    error: (error, stack) => Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            children: [
+                              const Icon(Icons.receipt_long, color: AppTheme.primaryGreen, size: 28),
+                              const SizedBox(height: 6),
+                              const Text('총 지출', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              const SizedBox(height: 2),
+                              const Text('0원', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                    ],
-                  ),
-                ),
-              );
+
+                  // Expenses List
+                  if (trip.expenses.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.receipt_long_outlined,
+                            size: 56,
+                            color: Colors.grey[300],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            '지출 내역이 없습니다',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '+ 버튼을 눌러 첫 지출을 추가하세요',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Column(
+                        children: trip.expenses.map((expense) {
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            child: ListTile(
+                              dense: true,
+                              onTap: () => context.push('/trip/$tripId/expense/${expense.id}'),
+                              leading: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.lightGreen,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Icon(
+                                  Icons.receipt,
+                                  color: AppTheme.primaryGreen,
+                                  size: 20,
+                                ),
+                              ),
+                              title: Text(
+                                expense.title,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              subtitle: Text(
+                                DateFormat('yyyy-MM-dd').format(expense.occurredAt),
+                                style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                              ),
+                              trailing: Text(
+                                expense.formattedAmount,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: AppTheme.primaryGreen,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(
@@ -467,17 +551,18 @@ class TripDetailScreen extends ConsumerWidget {
   }
 }
 
-class ParticipantManagementSheet extends ConsumerStatefulWidget {
+class CompanionManagementSheet extends ConsumerStatefulWidget {
   final int tripId;
   final Trip trip;
 
-  const ParticipantManagementSheet({super.key, required this.tripId, required this.trip});
+  const CompanionManagementSheet({super.key, required this.tripId, required this.trip});
 
   @override
-  ConsumerState<ParticipantManagementSheet> createState() => _ParticipantManagementSheetState();
+  ConsumerState<CompanionManagementSheet> createState() => _CompanionManagementSheetState();
 }
 
-class _ParticipantManagementSheetState extends ConsumerState<ParticipantManagementSheet> {
+class _CompanionManagementSheetState extends ConsumerState<CompanionManagementSheet> {
+  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
@@ -491,33 +576,40 @@ class _ParticipantManagementSheetState extends ConsumerState<ParticipantManageme
     super.dispose();
   }
 
-  Future<void> _addParticipant() async {
-    if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이름을 입력해주세요'), backgroundColor: AppTheme.negativeRed),
-      );
-      return;
-    }
+  String _sanitizePhone(String phone) {
+    return phone.replaceAll(RegExp(r'[^0-9]'), '');
+  }
+
+  bool _isValidEmail(String email) {
+    if (email.isEmpty) return true;
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+  }
+
+  Future<void> _addCompanion() async {
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
       final repository = ref.read(tripRepositoryProvider);
+      final phone = _sanitizePhone(_phoneController.text.trim());
+
       await repository.addParticipant(widget.tripId, {
         'name': _nameController.text.trim(),
-        'phone': _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-        'email': _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+        'phone': phone.isEmpty ? null : phone,
+        'email': _emailController.text.trim().isEmpty ? null : _emailController.text.trim().toLowerCase(),
       });
 
       ref.invalidate(tripDetailProvider(widget.tripId));
       ref.invalidate(settlementProvider(widget.tripId));
+      ref.invalidate(tripsProvider);
 
       if (mounted) {
         _nameController.clear();
         _phoneController.clear();
         _emailController.clear();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('참가자가 추가되었습니다'), backgroundColor: AppTheme.positiveGreen),
+          const SnackBar(content: Text('동행자가 추가되었습니다'), backgroundColor: AppTheme.positiveGreen),
         );
         Navigator.pop(context);
       }
@@ -532,8 +624,8 @@ class _ParticipantManagementSheetState extends ConsumerState<ParticipantManageme
     }
   }
 
-  Future<void> _deleteParticipant(Participant participant) async {
-    if (participant.isOwner) {
+  Future<void> _deleteCompanion(Participant companion) async {
+    if (companion.isOwner) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Owner는 삭제할 수 없습니다'), backgroundColor: AppTheme.negativeRed),
       );
@@ -543,8 +635,8 @@ class _ParticipantManagementSheetState extends ConsumerState<ParticipantManageme
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('참가자 삭제'),
-        content: Text('${participant.name}을(를) 삭제하시겠습니까?\n기존 지출 내역은 유지됩니다.'),
+        title: const Text('동행자 삭제'),
+        content: Text('${companion.name}을(를) 삭제하시겠습니까?\n기존 지출 내역은 유지됩니다.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
           TextButton(
@@ -561,14 +653,15 @@ class _ParticipantManagementSheetState extends ConsumerState<ParticipantManageme
 
     try {
       final repository = ref.read(tripRepositoryProvider);
-      await repository.deleteParticipant(widget.tripId, participant.id);
+      await repository.deleteParticipant(widget.tripId, companion.id);
 
       ref.invalidate(tripDetailProvider(widget.tripId));
       ref.invalidate(settlementProvider(widget.tripId));
+      ref.invalidate(tripsProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('참가자가 삭제되었습니다'), backgroundColor: AppTheme.positiveGreen),
+          const SnackBar(content: Text('동행자가 삭제되었습니다'), backgroundColor: AppTheme.positiveGreen),
         );
         Navigator.pop(context);
       }
@@ -606,97 +699,116 @@ class _ParticipantManagementSheetState extends ConsumerState<ParticipantManageme
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               const Text(
-                '참가자 관리',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                '동행자 관리',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
-              // Add participant form
+              // Add companion form
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('새 참가자 추가', style: TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _nameController,
-                        decoration: const InputDecoration(
-                          labelText: '이름 *',
-                          isDense: true,
-                          prefixIcon: Icon(Icons.person, size: 20),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _phoneController,
-                              decoration: const InputDecoration(
-                                labelText: '전화번호',
-                                isDense: true,
-                                prefixIcon: Icon(Icons.phone, size: 20),
-                              ),
-                              keyboardType: TextInputType.phone,
-                            ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('새 동행자 추가', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(
+                            labelText: '이름 *',
+                            isDense: true,
+                            prefixIcon: Icon(Icons.person, size: 20),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              controller: _emailController,
-                              decoration: const InputDecoration(
-                                labelText: '이메일',
-                                isDense: true,
-                                prefixIcon: Icon(Icons.email, size: 20),
-                              ),
-                              keyboardType: TextInputType.emailAddress,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _addParticipant,
-                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen),
-                          child: _isLoading
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Text('추가'),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return '이름을 입력해주세요';
+                            }
+                            return null;
+                          },
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _phoneController,
+                                decoration: const InputDecoration(
+                                  labelText: '전화번호',
+                                  hintText: '010-1234-5678',
+                                  isDense: true,
+                                  prefixIcon: Icon(Icons.phone, size: 20),
+                                ),
+                                keyboardType: TextInputType.phone,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _emailController,
+                                decoration: const InputDecoration(
+                                  labelText: '이메일',
+                                  isDense: true,
+                                  prefixIcon: Icon(Icons.email, size: 20),
+                                ),
+                                keyboardType: TextInputType.emailAddress,
+                                validator: (value) {
+                                  if (value != null && value.isNotEmpty && !_isValidEmail(value)) {
+                                    return '올바른 이메일 형식이 아닙니다';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _addCompanion,
+                            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen),
+                            child: _isLoading
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                : const Text('추가'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
-              // Current participants
-              const Text('현재 참가자', style: TextStyle(fontWeight: FontWeight.bold)),
+              // Current companions
+              const Text('현재 동행자', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Expanded(
                 child: ListView.builder(
                   controller: scrollController,
                   itemCount: widget.trip.participants.length,
                   itemBuilder: (context, index) {
-                    final participant = widget.trip.participants[index];
-                    final isDeleted = participant.deleteYn == 'Y';
+                    final companion = widget.trip.participants[index];
+                    final isDeleted = companion.deleteYn == 'Y';
 
                     return Card(
                       color: isDeleted ? Colors.grey.shade200 : null,
                       child: ListTile(
+                        dense: true,
                         leading: CircleAvatar(
-                          backgroundColor: participant.isOwner ? Colors.amber.shade100 : AppTheme.lightGreen,
-                          child: participant.isOwner
-                              ? const Icon(Icons.star, color: Colors.amber)
+                          radius: 18,
+                          backgroundColor: companion.isOwner ? Colors.amber.shade100 : AppTheme.lightGreen,
+                          child: companion.isOwner
+                              ? const Icon(Icons.star, color: Colors.amber, size: 18)
                               : Text(
-                                  participant.name[0],
+                                  companion.name[0],
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 14,
                                     color: isDeleted ? Colors.grey : AppTheme.primaryGreen,
                                   ),
                                 ),
@@ -704,53 +816,54 @@ class _ParticipantManagementSheetState extends ConsumerState<ParticipantManageme
                         title: Row(
                           children: [
                             Text(
-                              participant.name,
+                              companion.name,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
+                                fontSize: 14,
                                 decoration: isDeleted ? TextDecoration.lineThrough : null,
                                 color: isDeleted ? Colors.grey : null,
                               ),
                             ),
-                            if (participant.isOwner) ...[
-                              const SizedBox(width: 8),
+                            if (companion.isOwner) ...[
+                              const SizedBox(width: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                 decoration: BoxDecoration(
                                   color: Colors.amber.shade100,
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: const Text(
                                   'Owner',
-                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.amber),
+                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.amber),
                                 ),
                               ),
                             ],
                             if (isDeleted) ...[
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                 decoration: BoxDecoration(
                                   color: Colors.grey.shade300,
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: const Text(
                                   '삭제됨',
-                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey),
                                 ),
                               ),
                             ],
                           ],
                         ),
-                        subtitle: participant.phone != null || participant.email != null
+                        subtitle: companion.phone != null || companion.email != null
                             ? Text(
-                                [participant.phone, participant.email].where((e) => e != null).join(' / '),
-                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                [companion.phone, companion.email].where((e) => e != null).join(' / '),
+                                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                               )
                             : null,
-                        trailing: !participant.isOwner && !isDeleted
+                        trailing: !companion.isOwner && !isDeleted
                             ? IconButton(
-                                icon: const Icon(Icons.delete_outline, color: AppTheme.negativeRed),
-                                onPressed: () => _deleteParticipant(participant),
+                                icon: const Icon(Icons.delete_outline, color: AppTheme.negativeRed, size: 20),
+                                onPressed: () => _deleteCompanion(companion),
                               )
                             : null,
                       ),

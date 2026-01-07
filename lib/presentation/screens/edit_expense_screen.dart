@@ -8,6 +8,8 @@ import 'package:whdgkr/presentation/providers/trip_provider.dart';
 import 'package:whdgkr/presentation/screens/trip_detail_screen.dart';
 import 'package:whdgkr/presentation/screens/add_expense_screen.dart';
 
+enum ExpenseViewMode { view, edit }
+
 class EditExpenseScreen extends ConsumerStatefulWidget {
   final int tripId;
   final int expenseId;
@@ -25,6 +27,7 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
   DateTime? _expenseDate;
   bool _isLoading = false;
   bool _isInitialized = false;
+  ExpenseViewMode _viewMode = ExpenseViewMode.view;
 
   String _splitType = 'equal';
   int? _selectedPayerId;
@@ -169,20 +172,40 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
   Widget build(BuildContext context) {
     final tripAsync = ref.watch(tripDetailProvider(widget.tripId));
 
+    final isViewMode = _viewMode == ExpenseViewMode.view;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('지출 수정', style: TextStyle(fontWeight: FontWeight.bold)),
-        leading: IconButton(icon: const Icon(Icons.close), onPressed: () => context.pop()),
+        title: Text(
+          isViewMode ? '지출 상세' : '지출 수정',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () {
+            if (!isViewMode) {
+              setState(() => _viewMode = ExpenseViewMode.view);
+            } else {
+              context.pop();
+            }
+          },
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: AppTheme.negativeRed),
-            onPressed: _isLoading ? null : _deleteExpense,
-          ),
+          if (isViewMode)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, color: AppTheme.primaryGreen),
+              onPressed: () => setState(() => _viewMode = ExpenseViewMode.edit),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: AppTheme.negativeRed),
+              onPressed: _isLoading ? null : _deleteExpense,
+            ),
         ],
       ),
       body: tripAsync.when(
         data: (trip) {
-          // 활성 참가자만 필터링
+          // 활성 동행자만 필터링
           final activeParticipants = trip.activeParticipants;
 
           // 초기화
