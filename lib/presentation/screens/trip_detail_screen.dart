@@ -996,54 +996,170 @@ class _DateEditDialogState extends ConsumerState<DateEditDialog> {
   @override
   Widget build(BuildContext context) {
     final hasChanges = _startDate != widget.trip.startDate || _endDate != widget.trip.endDate;
+    final isValid = !_startDate.isAfter(_endDate);
+    final canSave = hasChanges && isValid && !_isLoading;
 
-    return AlertDialog(
-      title: const Text('일정 수정', style: TextStyle(fontWeight: FontWeight.bold)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          InkWell(
-            onTap: _selectStartDate,
-            child: InputDecorator(
-              decoration: const InputDecoration(
-                labelText: '시작일',
-                prefixIcon: Icon(Icons.calendar_today),
-                border: OutlineInputBorder(),
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.lightGreen,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.calendar_month, color: AppTheme.primaryGreen, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('일정 수정', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        SizedBox(height: 2),
+                        Text('여행 기간을 변경할 수 있어요', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => Navigator.pop(context),
+                    borderRadius: BorderRadius.circular(20),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(Icons.close, size: 20, color: Colors.grey),
+                    ),
+                  ),
+                ],
               ),
-              child: Text(_dateFormat.format(_startDate)),
-            ),
-          ),
-          const SizedBox(height: 16),
-          InkWell(
-            onTap: _selectEndDate,
-            child: InputDecorator(
-              decoration: const InputDecoration(
-                labelText: '종료일',
-                prefixIcon: Icon(Icons.calendar_today),
-                border: OutlineInputBorder(),
+              const SizedBox(height: 20),
+
+              // Period Section
+              const Text('기간', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey)),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    // Start Date
+                    InkWell(
+                      onTap: _selectStartDate,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
+                            const SizedBox(width: 12),
+                            const Text('시작일', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                            const Spacer(),
+                            Text(
+                              _dateFormat.format(_startDate),
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(Icons.chevron_right, size: 18, color: Colors.grey[400]),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Divider(height: 1, color: Colors.grey.shade300),
+                    // End Date
+                    InkWell(
+                      onTap: _selectEndDate,
+                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
+                            const SizedBox(width: 12),
+                            const Text('종료일', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                            const Spacer(),
+                            Text(
+                              _dateFormat.format(_endDate),
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(Icons.chevron_right, size: 18, color: Colors.grey[400]),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: Text(_dateFormat.format(_endDate)),
-            ),
+
+              // Validation message
+              if (!isValid)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, size: 14, color: AppTheme.negativeRed),
+                      const SizedBox(width: 4),
+                      Text(
+                        '시작일은 종료일 이전이어야 합니다',
+                        style: TextStyle(fontSize: 12, color: AppTheme.negativeRed),
+                      ),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 20),
+
+              // Actions
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text('취소', style: TextStyle(color: Colors.grey[600])),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      onPressed: canSave ? _saveDate : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryGreen,
+                        disabledBackgroundColor: Colors.grey.shade300,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Text('저장', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('취소'),
-        ),
-        ElevatedButton(
-          onPressed: _isLoading || !hasChanges ? null : _saveDate,
-          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen),
-          child: _isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                )
-              : const Text('저장'),
-        ),
-      ],
     );
   }
 }
