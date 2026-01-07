@@ -700,17 +700,25 @@ class _CompanionManagementSheetState extends ConsumerState<CompanionManagementSh
 
   @override
   Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+
     return DraggableScrollableSheet(
-      initialChildSize: 0.7,
+      initialChildSize: 0.75,
       minChildSize: 0.5,
-      maxChildSize: 0.9,
+      maxChildSize: 0.95,
       expand: false,
       builder: (context, scrollController) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        return SafeArea(
+          child: ListView(
+            controller: scrollController,
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: 16 + bottomPadding,
+            ),
             children: [
+              // Handle
               Center(
                 child: Container(
                   width: 40,
@@ -722,6 +730,8 @@ class _CompanionManagementSheetState extends ConsumerState<CompanionManagementSh
                 ),
               ),
               const SizedBox(height: 12),
+
+              // Title
               const Text(
                 '동행자 관리',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -804,95 +814,91 @@ class _CompanionManagementSheetState extends ConsumerState<CompanionManagementSh
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
-              // Current companions
+              // Current companions section
               const Text('현재 동행자', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  itemCount: widget.trip.participants.length,
-                  itemBuilder: (context, index) {
-                    final companion = widget.trip.participants[index];
-                    final isDeleted = companion.deleteYn == 'Y';
 
-                    return Card(
-                      color: isDeleted ? Colors.grey.shade200 : null,
-                      child: ListTile(
-                        dense: true,
-                        leading: CircleAvatar(
-                          radius: 18,
-                          backgroundColor: companion.isOwner ? Colors.amber.shade100 : AppTheme.lightGreen,
-                          child: companion.isOwner
-                              ? const Icon(Icons.star, color: Colors.amber, size: 18)
-                              : Text(
-                                  companion.name[0],
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: isDeleted ? Colors.grey : AppTheme.primaryGreen,
-                                  ),
-                                ),
-                        ),
-                        title: Row(
-                          children: [
-                            Text(
-                              companion.name,
+              // Companion list items
+              ...widget.trip.participants.map((companion) {
+                final isDeleted = companion.deleteYn == 'Y';
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  color: isDeleted ? Colors.grey.shade200 : null,
+                  child: ListTile(
+                    dense: true,
+                    leading: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: companion.isOwner ? Colors.amber.shade100 : AppTheme.lightGreen,
+                      child: companion.isOwner
+                          ? const Icon(Icons.star, color: Colors.amber, size: 18)
+                          : Text(
+                              companion.name[0],
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
-                                decoration: isDeleted ? TextDecoration.lineThrough : null,
-                                color: isDeleted ? Colors.grey : null,
+                                color: isDeleted ? Colors.grey : AppTheme.primaryGreen,
                               ),
                             ),
-                            if (companion.isOwner) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.shade100,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  'Owner',
-                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.amber),
-                                ),
-                              ),
-                            ],
-                            if (isDeleted) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade300,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  '삭제됨',
-                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey),
-                                ),
-                              ),
-                            ],
-                          ],
+                    ),
+                    title: Row(
+                      children: [
+                        Text(
+                          companion.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            decoration: isDeleted ? TextDecoration.lineThrough : null,
+                            color: isDeleted ? Colors.grey : null,
+                          ),
                         ),
-                        subtitle: companion.phone != null || companion.email != null
-                            ? Text(
-                                [companion.phone, companion.email].where((e) => e != null).join(' / '),
-                                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                              )
-                            : null,
-                        trailing: !companion.isOwner && !isDeleted
-                            ? IconButton(
-                                icon: const Icon(Icons.delete_outline, color: AppTheme.negativeRed, size: 20),
-                                onPressed: () => _deleteCompanion(companion),
-                              )
-                            : null,
-                      ),
-                    );
-                  },
-                ),
-              ),
+                        if (companion.isOwner) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade100,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Owner',
+                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.amber),
+                            ),
+                          ),
+                        ],
+                        if (isDeleted) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              '삭제됨',
+                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    subtitle: companion.phone != null || companion.email != null
+                        ? Text(
+                            [companion.phone, companion.email].where((e) => e != null).join(' / '),
+                            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                          )
+                        : null,
+                    trailing: !companion.isOwner && !isDeleted
+                        ? IconButton(
+                            icon: const Icon(Icons.delete_outline, color: AppTheme.negativeRed, size: 20),
+                            onPressed: () => _deleteCompanion(companion),
+                          )
+                        : null,
+                  ),
+                );
+              }),
             ],
           ),
         );
