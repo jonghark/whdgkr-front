@@ -143,7 +143,7 @@ class TripListScreen extends ConsumerWidget {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '${trip.participants.length}명 참가',
+                              '동행자 ${trip.activeParticipants.length}명',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey[600],
