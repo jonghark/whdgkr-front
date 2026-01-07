@@ -60,3 +60,7 @@ macos/Pods/
 .gradle/
 out/
 backend/build/
+
+# Build artifacts (auto-generated temp files)
+**/*.class.uniqueId*
+**/*.class.uniqueId

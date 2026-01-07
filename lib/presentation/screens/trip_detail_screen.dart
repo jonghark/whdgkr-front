@@ -65,8 +65,12 @@ class TripDetailScreen extends ConsumerWidget {
           final dateFormat = DateFormat('yyyy-MM-dd');
           final activeParticipants = trip.activeParticipants;
 
-          return Column(
-            children: [
+          return SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 96),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
               // Trip Header Card
               Container(
                 width: double.infinity,
@@ -363,80 +367,82 @@ class TripDetailScreen extends ConsumerWidget {
               ),
 
               // Expenses List
-              Expanded(
-                child: trip.expenses.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.receipt_long_outlined,
-                              size: 64,
-                              color: Colors.grey[300],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              '지출 내역이 없습니다',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '+ 버튼을 눌러 첫 지출을 추가하세요',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: trip.expenses.length,
-                        itemBuilder: (context, index) {
-                          final expense = trip.expenses[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              onTap: () => context.push('/trip/$tripId/expense/${expense.id}'),
-                              leading: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.lightGreen,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.receipt,
-                                  color: AppTheme.primaryGreen,
-                                ),
-                              ),
-                              title: Text(
-                                expense.title,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              subtitle: Text(
-                                DateFormat('yyyy-MM-dd').format(expense.occurredAt),
-                                style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                              ),
-                              trailing: Text(
-                                expense.formattedAmount,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: AppTheme.primaryGreen,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
+              if (trip.expenses.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 48),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.receipt_long_outlined,
+                        size: 64,
+                        color: Colors.grey[300],
                       ),
-              ),
-            ],
-          );
+                      const SizedBox(height: 16),
+                      Text(
+                        '지출 내역이 없습니다',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '+ 버튼을 눌러 첫 지출을 추가하세요',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: trip.expenses.map((expense) {
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          onTap: () => context.push('/trip/$tripId/expense/${expense.id}'),
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.lightGreen,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.receipt,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          ),
+                          title: Text(
+                            expense.title,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            DateFormat('yyyy-MM-dd').format(expense.occurredAt),
+                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          ),
+                          trailing: Text(
+                            expense.formattedAmount,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                    ],
+                  ),
+                ),
+              );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(
