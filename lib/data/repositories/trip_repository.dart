@@ -66,6 +66,18 @@ class TripRepository {
     }
   }
 
+  Future<Trip> updateTrip(int tripId, Map<String, dynamic> tripData) async {
+    try {
+      debugPrint('[TripRepository.updateTrip] API call: tripId=$tripId, data=$tripData');
+      final response = await _apiClient.dio.patch('/trips/$tripId', data: tripData);
+      debugPrint('[TripRepository.updateTrip] Success: ${response.data}');
+      return Trip.fromJson(response.data);
+    } catch (e, stackTrace) {
+      _logError('updateTrip', e, stackTrace);
+      throw Exception('Failed to update trip: $e');
+    }
+  }
+
   Future<Participant> addParticipant(int tripId, Map<String, dynamic> participantData) async {
     try {
       debugPrint('[TripRepository.addParticipant] API call: tripId=$tripId, data=$participantData');

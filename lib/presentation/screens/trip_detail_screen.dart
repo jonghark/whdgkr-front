@@ -28,6 +28,13 @@ class TripDetailScreen extends ConsumerWidget {
     );
   }
 
+  void _showDateEditDialog(BuildContext context, WidgetRef ref, Trip trip) {
+    showDialog(
+      context: context,
+      builder: (context) => DateEditDialog(tripId: tripId, trip: trip),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tripAsync = ref.watch(tripDetailProvider(tripId));
@@ -100,11 +107,26 @@ class TripDetailScreen extends ConsumerWidget {
                                       ),
                                     ),
                                     const SizedBox(height: 2),
-                                    Text(
-                                      '${dateFormat.format(trip.startDate)} - ${dateFormat.format(trip.endDate)}',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.white.withValues(alpha: 0.9),
+                                    InkWell(
+                                      onTap: () => _showDateEditDialog(context, ref, trip),
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '${dateFormat.format(trip.startDate)} - ${dateFormat.format(trip.endDate)}',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.white.withValues(alpha: 0.9),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            Icons.edit,
+                                            size: 14,
+                                            color: Colors.white.withValues(alpha: 0.7),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
@@ -875,6 +897,153 @@ class _CompanionManagementSheetState extends ConsumerState<CompanionManagementSh
           ),
         );
       },
+    );
+  }
+}
+
+class DateEditDialog extends ConsumerStatefulWidget {
+  final int tripId;
+  final Trip trip;
+
+  const DateEditDialog({super.key, required this.tripId, required this.trip});
+
+  @override
+  ConsumerState<DateEditDialog> createState() => _DateEditDialogState();
+}
+
+class _DateEditDialogState extends ConsumerState<DateEditDialog> {
+  late DateTime _startDate;
+  late DateTime _endDate;
+  bool _isLoading = false;
+  final _dateFormat = DateFormat('yyyy-MM-dd');
+
+  @override
+  void initState() {
+    super.initState();
+    _startDate = widget.trip.startDate;
+    _endDate = widget.trip.endDate;
+  }
+
+  Future<void> _selectStartDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _startDate,
+      firstDate: DateTime(2020),
+      lastDate: _endDate,
+      locale: const Locale('ko', 'KR'),
+    );
+    if (picked != null) {
+      setState(() => _startDate = picked);
+    }
+  }
+
+  Future<void> _selectEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate,
+      firstDate: _startDate,
+      lastDate: DateTime(2100),
+      locale: const Locale('ko', 'KR'),
+    );
+    if (picked != null) {
+      setState(() => _endDate = picked);
+    }
+  }
+
+  Future<void> _saveDate() async {
+    if (_startDate.isAfter(_endDate)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('시작일은 종료일보다 이후일 수 없습니다'),
+          backgroundColor: AppTheme.negativeRed,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final repository = ref.read(tripRepositoryProvider);
+      await repository.updateTrip(widget.tripId, {
+        'startDate': _dateFormat.format(_startDate),
+        'endDate': _dateFormat.format(_endDate),
+      });
+
+      ref.invalidate(tripDetailProvider(widget.tripId));
+      ref.invalidate(tripsProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('여행 일정이 수정되었습니다'),
+            backgroundColor: AppTheme.positiveGreen,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('수정 실패: $e'), backgroundColor: AppTheme.negativeRed),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasChanges = _startDate != widget.trip.startDate || _endDate != widget.trip.endDate;
+
+    return AlertDialog(
+      title: const Text('일정 수정', style: TextStyle(fontWeight: FontWeight.bold)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            onTap: _selectStartDate,
+            child: InputDecorator(
+              decoration: const InputDecoration(
+                labelText: '시작일',
+                prefixIcon: Icon(Icons.calendar_today),
+                border: OutlineInputBorder(),
+              ),
+              child: Text(_dateFormat.format(_startDate)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          InkWell(
+            onTap: _selectEndDate,
+            child: InputDecorator(
+              decoration: const InputDecoration(
+                labelText: '종료일',
+                prefixIcon: Icon(Icons.calendar_today),
+                border: OutlineInputBorder(),
+              ),
+              child: Text(_dateFormat.format(_endDate)),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('취소'),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading || !hasChanges ? null : _saveDate,
+          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryGreen),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Text('저장'),
+        ),
+      ],
     );
   }
 }
