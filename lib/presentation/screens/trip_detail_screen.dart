@@ -529,7 +529,7 @@ class TripDetailScreen extends ConsumerWidget {
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                               ),
                               subtitle: Text(
-                                DateFormat('yyyy-MM-dd').format(expense.occurredAt),
+                                '${DateFormat('yyyy-MM-dd').format(expense.occurredAt)} · ${expense.payerSummaryText}',
                                 style: TextStyle(color: Colors.grey[600], fontSize: 11),
                               ),
                               trailing: Text(

@@ -43,6 +43,29 @@ class Expense {
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
     return '$formatted원';
   }
+
+  /// 대표 결제자 요약 텍스트
+  /// - 1명: "이름"
+  /// - 2명 이상: "대표이름 외 N명" (대표 = 가장 많이 낸 사람, 동률 시 이름순)
+  String get payerSummaryText {
+    if (payments.isEmpty) return '';
+
+    if (payments.length == 1) {
+      return payments.first.participantName;
+    }
+
+    // 금액 내림차순, 동률 시 이름 오름차순 정렬
+    final sorted = List<PaymentDetail>.from(payments)
+      ..sort((a, b) {
+        final amountCompare = b.amount.compareTo(a.amount);
+        if (amountCompare != 0) return amountCompare;
+        return a.participantName.compareTo(b.participantName);
+      });
+
+    final representative = sorted.first.participantName;
+    final othersCount = payments.length - 1;
+    return '$representative 외 $othersCount명';
+  }
 }
 
 class PaymentDetail {
