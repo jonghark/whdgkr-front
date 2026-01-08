@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:whdgkr/core/theme/app_theme.dart';
 import 'package:whdgkr/presentation/providers/trip_provider.dart';
 import 'package:whdgkr/presentation/providers/friend_provider.dart';
 import 'package:whdgkr/data/models/settlement.dart';
 import 'package:whdgkr/data/models/trip.dart';
+import 'package:whdgkr/data/models/expense.dart';
 import 'package:whdgkr/data/models/friend.dart';
 import 'package:intl/intl.dart';
 
@@ -13,6 +15,61 @@ final settlementProvider = FutureProvider.family<Settlement, int>((ref, tripId) 
   final repository = ref.watch(tripRepositoryProvider);
   return repository.getSettlement(tripId);
 });
+
+/// 지출 삭제 확인 다이얼로그
+Future<void> _showDeleteExpenseDialog(
+  BuildContext context,
+  WidgetRef ref,
+  int tripId,
+  Expense expense,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('지출 삭제'),
+      content: Text('\'${expense.title}\' 지출을 삭제할까요?\n삭제된 지출은 정산에서 제외됩니다.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('취소'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('삭제', style: TextStyle(color: AppTheme.negativeRed)),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed != true) return;
+
+  try {
+    final repository = ref.read(tripRepositoryProvider);
+    await repository.deleteExpense(expense.id);
+
+    ref.invalidate(tripDetailProvider(tripId));
+    ref.invalidate(settlementProvider(tripId));
+    ref.invalidate(tripsProvider);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('지출이 삭제되었습니다'),
+          backgroundColor: AppTheme.positiveGreen,
+        ),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('삭제 실패: $e'),
+          backgroundColor: AppTheme.negativeRed,
+        ),
+      );
+    }
+  }
+}
 
 class TripDetailScreen extends ConsumerWidget {
   final int tripId;
@@ -472,6 +529,39 @@ class TripDetailScreen extends ConsumerWidget {
                     ),
                   ),
 
+                  // Expenses Section Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.receipt_long, size: 18, color: AppTheme.primaryGreen),
+                            const SizedBox(width: 6),
+                            Text(
+                              '지출 목록 (${trip.expenses.length})',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        TextButton.icon(
+                          onPressed: () => context.push('/trip/$tripId/add-expense'),
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('지출 추가'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppTheme.primaryGreen,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
                   // Expenses List
                   if (trip.expenses.isEmpty)
                     Padding(
@@ -494,11 +584,12 @@ class TripDetailScreen extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          Text(
-                            '+ 버튼을 눌러 첫 지출을 추가하세요',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[500],
+                          ElevatedButton.icon(
+                            onPressed: () => context.push('/trip/$tripId/add-expense'),
+                            icon: const Icon(Icons.add, size: 18),
+                            label: const Text('첫 지출 추가하기'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryGreen,
                             ),
                           ),
                         ],
@@ -509,37 +600,88 @@ class TripDetailScreen extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Column(
                         children: trip.expenses.map((expense) {
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 6),
-                            child: ListTile(
-                              dense: true,
-                              onTap: () => context.push('/trip/$tripId/expense/${expense.id}'),
-                              leading: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.lightGreen,
-                                  borderRadius: BorderRadius.circular(6),
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Slidable(
+                                key: ValueKey(expense.id),
+                                startActionPane: ActionPane(
+                                  motion: const BehindMotion(),
+                                  extentRatio: 0.25,
+                                  children: [
+                                    SlidableAction(
+                                      onPressed: (_) => context.push('/trip/$tripId/expense/${expense.id}'),
+                                      backgroundColor: Colors.blue,
+                                      foregroundColor: Colors.white,
+                                      icon: Icons.edit,
+                                      label: '수정',
+                                    ),
+                                  ],
                                 ),
-                                child: const Icon(
-                                  Icons.receipt,
-                                  color: AppTheme.primaryGreen,
-                                  size: 20,
+                                endActionPane: ActionPane(
+                                  motion: const BehindMotion(),
+                                  extentRatio: 0.25,
+                                  children: [
+                                    SlidableAction(
+                                      onPressed: (_) => _showDeleteExpenseDialog(
+                                        context,
+                                        ref,
+                                        tripId,
+                                        expense,
+                                      ),
+                                      backgroundColor: AppTheme.negativeRed,
+                                      foregroundColor: Colors.white,
+                                      icon: Icons.delete,
+                                      label: '삭제',
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              title: Text(
-                                expense.title,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                              ),
-                              subtitle: Text(
-                                '${DateFormat('yyyy-MM-dd').format(expense.occurredAt)} · ${expense.payerSummaryText}',
-                                style: TextStyle(color: Colors.grey[600], fontSize: 11),
-                              ),
-                              trailing: Text(
-                                expense.formattedAmount,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: AppTheme.primaryGreen,
+                                child: Card(
+                                  margin: EdgeInsets.zero,
+                                  child: ListTile(
+                                    dense: true,
+                                    onTap: () => context.push('/trip/$tripId/expense/${expense.id}'),
+                                    leading: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.lightGreen,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Icon(
+                                        Icons.receipt,
+                                        color: AppTheme.primaryGreen,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    title: Text(
+                                      expense.title,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    ),
+                                    subtitle: Text(
+                                      '${DateFormat('yyyy-MM-dd').format(expense.occurredAt)} · ${expense.payerSummaryText}',
+                                      style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                                    ),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          expense.formattedAmount,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: AppTheme.primaryGreen,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          Icons.chevron_left,
+                                          size: 16,
+                                          color: Colors.grey[400],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
