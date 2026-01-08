@@ -956,6 +956,44 @@ class _DateEditDialogState extends ConsumerState<DateEditDialog> {
     }
   }
 
+  /// 지출 날짜가 새 기간에 포함되는지 검증
+  bool _hasExpenseOutsideRange(DateTime newStart, DateTime newEnd) {
+    for (final expense in widget.trip.expenses) {
+      final expenseDate = DateTime(
+        expense.occurredAt.year,
+        expense.occurredAt.month,
+        expense.occurredAt.day,
+      );
+      final startOnly = DateTime(newStart.year, newStart.month, newStart.day);
+      final endOnly = DateTime(newEnd.year, newEnd.month, newEnd.day);
+
+      if (expenseDate.isBefore(startOnly) || expenseDate.isAfter(endOnly)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void _showCannotChangeAlert() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('일정 변경 불가'),
+        content: const Text(
+          '변경하려는 기간 밖에 이미 지출 내역이 있어\n'
+          '여행 일정을 변경할 수 없습니다.\n'
+          '지출 날짜를 먼저 수정하거나 삭제해주세요.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _saveDate() async {
     if (_startDate.isAfter(_endDate)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -964,6 +1002,12 @@ class _DateEditDialogState extends ConsumerState<DateEditDialog> {
           backgroundColor: AppTheme.negativeRed,
         ),
       );
+      return;
+    }
+
+    // 지출 날짜 검증
+    if (_hasExpenseOutsideRange(_startDate, _endDate)) {
+      _showCannotChangeAlert();
       return;
     }
 
