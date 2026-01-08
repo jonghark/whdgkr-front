@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:whdgkr/core/theme/app_theme.dart';
 import 'package:whdgkr/presentation/providers/trip_provider.dart';
+import 'package:whdgkr/presentation/providers/friend_provider.dart';
 import 'package:whdgkr/data/models/settlement.dart';
 import 'package:whdgkr/data/models/trip.dart';
+import 'package:whdgkr/data/models/friend.dart';
 import 'package:intl/intl.dart';
 
 final settlementProvider = FutureProvider.family<Settlement, int>((ref, tripId) async {
@@ -607,6 +609,92 @@ class _CompanionManagementSheetState extends ConsumerState<CompanionManagementSh
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
 
+  /// 친구가 이미 동행자로 등록되어 있는지 확인
+  bool _isFriendAlreadyCompanion(Friend friend) {
+    final activeCompanions = widget.trip.activeParticipants;
+
+    for (final companion in activeCompanions) {
+      // 전화번호로 비교 (숫자만)
+      if (friend.phone != null && companion.phone != null) {
+        final friendPhone = _sanitizePhone(friend.phone!);
+        final companionPhone = _sanitizePhone(companion.phone!);
+        if (friendPhone.isNotEmpty && friendPhone == companionPhone) {
+          return true;
+        }
+      }
+      // 이메일로 비교 (소문자)
+      if (friend.email != null && companion.email != null) {
+        final friendEmail = friend.email!.trim().toLowerCase();
+        final companionEmail = companion.email!.trim().toLowerCase();
+        if (friendEmail.isNotEmpty && friendEmail == companionEmail) {
+          return true;
+        }
+      }
+      // 이름으로 비교 (전화/이메일 없는 경우)
+      if (friend.phone == null && friend.email == null &&
+          companion.phone == null && companion.email == null) {
+        if (friend.name.trim() == companion.name.trim()) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /// 친구에서 동행자 추가
+  Future<void> _addCompanionFromFriend(Friend friend) async {
+    setState(() => _isLoading = true);
+
+    try {
+      final repository = ref.read(tripRepositoryProvider);
+      final phone = friend.phone != null ? _sanitizePhone(friend.phone!) : null;
+
+      await repository.addParticipant(widget.tripId, {
+        'name': friend.name.trim(),
+        'phone': phone?.isEmpty == true ? null : phone,
+        'email': friend.email?.trim().toLowerCase(),
+      });
+
+      ref.invalidate(tripDetailProvider(widget.tripId));
+      ref.invalidate(settlementProvider(widget.tripId));
+      ref.invalidate(tripsProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${friend.name}님이 동행자로 추가되었습니다'),
+            backgroundColor: AppTheme.positiveGreen,
+          ),
+        );
+        Navigator.pop(context); // 친구 선택 시트 닫기
+        Navigator.pop(context); // 동행자 관리 시트 닫기
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('추가 실패: $e'), backgroundColor: AppTheme.negativeRed),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// 친구 선택 바텀시트 표시
+  void _showFriendSelectionSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => _FriendSelectionSheet(
+        onSelect: _addCompanionFromFriend,
+        isFriendAlreadyCompanion: _isFriendAlreadyCompanion,
+      ),
+    );
+  }
+
   Future<void> _addCompanion() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -747,7 +835,21 @@ class _CompanionManagementSheetState extends ConsumerState<CompanionManagementSh
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('새 동행자 추가', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('새 동행자 추가', style: TextStyle(fontWeight: FontWeight.bold)),
+                            TextButton.icon(
+                              onPressed: _isLoading ? null : _showFriendSelectionSheet,
+                              icon: const Icon(Icons.group_add, size: 18),
+                              label: const Text('친구에서 추가'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppTheme.primaryGreen,
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                              ),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _nameController,
@@ -1210,6 +1312,291 @@ class _DateEditDialogState extends ConsumerState<DateEditDialog> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 친구 선택 바텀시트
+class _FriendSelectionSheet extends ConsumerStatefulWidget {
+  final Future<void> Function(Friend) onSelect;
+  final bool Function(Friend) isFriendAlreadyCompanion;
+
+  const _FriendSelectionSheet({
+    required this.onSelect,
+    required this.isFriendAlreadyCompanion,
+  });
+
+  @override
+  ConsumerState<_FriendSelectionSheet> createState() => _FriendSelectionSheetState();
+}
+
+class _FriendSelectionSheetState extends ConsumerState<_FriendSelectionSheet> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+  bool _isAdding = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Friend> _filterFriends(List<Friend> friends) {
+    if (_searchQuery.isEmpty) return friends;
+
+    final query = _searchQuery.toLowerCase();
+    return friends.where((friend) {
+      final nameMatch = friend.name.toLowerCase().contains(query);
+      final phoneMatch = friend.phone?.contains(query) ?? false;
+      final emailMatch = friend.email?.toLowerCase().contains(query) ?? false;
+      return nameMatch || phoneMatch || emailMatch;
+    }).toList();
+  }
+
+  Future<void> _handleSelect(Friend friend) async {
+    setState(() => _isAdding = true);
+    await widget.onSelect(friend);
+    if (mounted) setState(() => _isAdding = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final friendsAsync = ref.watch(friendsProvider);
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) {
+        return SafeArea(
+          child: Column(
+            children: [
+              // Handle
+              Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 8),
+                child: Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Title
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.group, color: AppTheme.primaryGreen),
+                    const SizedBox(width: 8),
+                    const Text(
+                      '친구에서 추가',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Search field
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: '이름, 전화번호, 이메일로 검색',
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  onChanged: (value) => setState(() => _searchQuery = value),
+                ),
+              ),
+
+              // Friend list
+              Expanded(
+                child: friendsAsync.when(
+                  data: (friends) {
+                    final filteredFriends = _filterFriends(friends);
+
+                    if (friends.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.people_outline, size: 48, color: Colors.grey[300]),
+                            const SizedBox(height: 12),
+                            Text(
+                              '등록된 친구가 없습니다',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '친구 탭에서 친구를 먼저 추가해주세요',
+                              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (filteredFriends.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.search_off, size: 48, color: Colors.grey[300]),
+                            const SizedBox(height: 12),
+                            Text(
+                              '검색 결과가 없습니다',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      controller: scrollController,
+                      padding: EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        bottom: 16 + bottomPadding,
+                      ),
+                      itemCount: filteredFriends.length,
+                      itemBuilder: (context, index) {
+                        final friend = filteredFriends[index];
+                        final isAlreadyAdded = widget.isFriendAlreadyCompanion(friend);
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          color: isAlreadyAdded ? Colors.grey.shade100 : null,
+                          child: ListTile(
+                            dense: true,
+                            enabled: !isAlreadyAdded && !_isAdding,
+                            onTap: isAlreadyAdded || _isAdding
+                                ? null
+                                : () => _handleSelect(friend),
+                            leading: CircleAvatar(
+                              radius: 18,
+                              backgroundColor: isAlreadyAdded
+                                  ? Colors.grey.shade300
+                                  : AppTheme.lightGreen,
+                              child: Text(
+                                friend.name[0],
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: isAlreadyAdded
+                                      ? Colors.grey
+                                      : AppTheme.primaryGreen,
+                                ),
+                              ),
+                            ),
+                            title: Row(
+                              children: [
+                                Text(
+                                  friend.name,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: isAlreadyAdded ? Colors.grey : null,
+                                  ),
+                                ),
+                                if (isAlreadyAdded) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade300,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Text(
+                                      '이미 등록됨',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            subtitle: friend.phone != null || friend.email != null
+                                ? Text(
+                                    [friend.phone, friend.email]
+                                        .where((e) => e != null)
+                                        .join(' / '),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                    ),
+                                  )
+                                : null,
+                            trailing: isAlreadyAdded
+                                ? const Icon(Icons.check, color: Colors.grey)
+                                : const Icon(
+                                    Icons.add_circle_outline,
+                                    color: AppTheme.primaryGreen,
+                                  ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                  error: (error, stack) => Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline, size: 48, color: Colors.grey[300]),
+                        const SizedBox(height: 12),
+                        Text(
+                          '친구 목록을 불러오지 못했어요',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          onPressed: () => ref.invalidate(friendsProvider),
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('다시 시도'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryGreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
