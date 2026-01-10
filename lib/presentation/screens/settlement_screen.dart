@@ -247,6 +247,109 @@ class SettlementScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    // 0원 정산 완료 동행자 표시 (transfers가 있을 때도 표시)
+                    Builder(
+                      builder: (context) {
+                        final settledParticipants = settlement.balances
+                            .where((b) => b.isSettled)
+                            .toList();
+
+                        if (settledParticipants.isNotEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Card(
+                              color: Colors.grey.shade50,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.check_circle,
+                                          size: 18,
+                                          color: AppTheme.primaryGreen,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Text(
+                                          '정산 완료 동행자',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppTheme.primaryGreen,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: settledParticipants.map((balance) {
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.3)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              CircleAvatar(
+                                                radius: 12,
+                                                backgroundColor: AppTheme.lightGreen,
+                                                child: Text(
+                                                  balance.participantName[0].toUpperCase(),
+                                                  style: const TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: AppTheme.primaryGreen,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                balance.participantName,
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Icon(
+                                                Icons.check,
+                                                size: 14,
+                                                color: AppTheme.primaryGreen,
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '지출과 부담 금액이 같아 추가 정산이 필요 없습니다',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+
                     if (settlement.transfers.isEmpty)
                       Card(
                         child: Padding(
