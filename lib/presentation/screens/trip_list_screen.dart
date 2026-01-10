@@ -195,12 +195,16 @@ class TripListScreen extends ConsumerWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          context.push('/create-trip');
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('새 여행'),
+      // 여행이 1건 이상일 때만 FAB 노출 (0건일 때는 Empty State 버튼만 사용)
+      floatingActionButton: tripsAsync.maybeWhen(
+        data: (trips) => trips.isNotEmpty
+            ? FloatingActionButton.extended(
+                onPressed: () => context.push('/create-trip'),
+                icon: const Icon(Icons.add),
+                label: const Text('새 여행'),
+              )
+            : null,
+        orElse: () => null,
       ),
     );
   }
