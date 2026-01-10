@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import 'package:whdgkr/presentation/screens/add_expense_screen.dart';
 import 'package:whdgkr/presentation/screens/edit_expense_screen.dart';
 import 'package:whdgkr/presentation/screens/friend_list_screen.dart';
 import 'package:whdgkr/presentation/screens/friend_form_screen.dart';
+import 'package:whdgkr/presentation/screens/debug_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
@@ -31,6 +33,12 @@ final _router = GoRouter(
           path: '/friends',
           builder: (context, state) => const FriendListScreen(),
         ),
+        // 개발/테스트 전용 디버그 화면 (kDebugMode에서만 노출)
+        if (kDebugMode)
+          GoRoute(
+            path: '/debug',
+            builder: (context, state) => const DebugScreen(),
+          ),
       ],
     ),
     GoRoute(
@@ -112,7 +120,16 @@ class MainShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
-    final currentIndex = location == '/friends' ? 1 : 0;
+
+    // 디버그 모드에서는 3개 탭, 아니면 2개 탭
+    int currentIndex;
+    if (location == '/friends') {
+      currentIndex = 1;
+    } else if (location == '/debug') {
+      currentIndex = 2;
+    } else {
+      currentIndex = 0;
+    }
 
     return Scaffold(
       body: child,
@@ -123,19 +140,28 @@ class MainShell extends StatelessWidget {
             context.go('/');
           } else if (index == 1) {
             context.go('/friends');
+          } else if (index == 2 && kDebugMode) {
+            context.go('/debug');
           }
         },
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.card_travel_outlined),
             selectedIcon: Icon(Icons.card_travel),
             label: '여행',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.people_outline),
             selectedIcon: Icon(Icons.people),
             label: '친구',
           ),
+          // 개발/테스트 전용 (kDebugMode에서만 노출)
+          if (kDebugMode)
+            NavigationDestination(
+              icon: Icon(Icons.developer_mode_outlined, color: Colors.red.shade300),
+              selectedIcon: Icon(Icons.developer_mode, color: Colors.red),
+              label: '개발',
+            ),
         ],
       ),
     );
