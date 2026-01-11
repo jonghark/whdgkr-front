@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:whdgkr/core/theme/app_theme.dart';
+import 'package:whdgkr/core/utils/phone_formatter.dart';
 import 'package:whdgkr/presentation/providers/friend_provider.dart';
 
 class FriendFormScreen extends ConsumerStatefulWidget {
@@ -37,7 +39,8 @@ class _FriendFormScreenState extends ConsumerState<FriendFormScreen> {
         final repository = ref.read(friendRepositoryProvider);
         final friend = await repository.getFriendById(widget.friendId!);
         _nameController.text = friend.name;
-        _phoneController.text = friend.phone ?? '';
+        // 저장된 숫자를 포맷팅하여 표시
+        _phoneController.text = PhoneNumberFormatter.format(friend.phone);
         _emailController.text = friend.email ?? '';
         _isInitialized = true;
       } catch (e) {
@@ -60,9 +63,11 @@ class _FriendFormScreenState extends ConsumerState<FriendFormScreen> {
 
     try {
       final repository = ref.read(friendRepositoryProvider);
+      // 전화번호는 숫자만 저장
+      final phoneNormalized = PhoneNumberFormatter.normalize(_phoneController.text);
       final data = {
         'name': _nameController.text.trim(),
-        'phone': _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        'phone': phoneNormalized.isEmpty ? null : phoneNormalized,
         'email': _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
       };
 
@@ -175,6 +180,10 @@ class _FriendFormScreenState extends ConsumerState<FriendFormScreen> {
                         helperText: '전화번호는 중복될 수 없습니다',
                       ),
                       keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9\-]')),
+                        PhoneNumberFormatter(),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     TextFormField(

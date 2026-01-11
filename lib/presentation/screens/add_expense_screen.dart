@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:whdgkr/core/theme/app_theme.dart';
 import 'package:whdgkr/presentation/providers/trip_provider.dart';
-import 'package:whdgkr/presentation/screens/trip_detail_screen.dart';
 
 // 3자리 콤마 포매터
 class ThousandsSeparatorInputFormatter extends TextInputFormatter {
@@ -64,6 +63,59 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     return int.tryParse(text.replaceAll(',', '')) ?? 0;
   }
 
+  /// 직접입력 모드에서 체크박스 변경 시 균등 분배 재계산
+  void _recalculateCustomShares(List<dynamic> activeParticipants) {
+    final totalAmount = _parseAmount(_amountController.text);
+    if (totalAmount <= 0) return;
+
+    // 선택된 동행자 목록
+    final selectedIds = _selectedShareholders.entries
+        .where((e) => e.value)
+        .map((e) => e.key)
+        .toList();
+
+    if (selectedIds.isEmpty) return;
+
+    // 균등 분배 계산
+    final shareAmount = totalAmount ~/ selectedIds.length;
+    final remainder = totalAmount % selectedIds.length;
+
+    // 나머지는 대표에게, 대표가 없으면 이름순 첫 번째 동행자에게
+    int? ownerId;
+    String? firstParticipantName;
+    int? firstParticipantId;
+
+    for (var p in activeParticipants) {
+      if (selectedIds.contains(p.id)) {
+        if (p.isOwner == true) {
+          ownerId = p.id;
+        }
+        if (firstParticipantName == null || p.name.compareTo(firstParticipantName) < 0) {
+          firstParticipantName = p.name;
+          firstParticipantId = p.id;
+        }
+      }
+    }
+
+    final remainderRecipientId = ownerId ?? firstParticipantId;
+
+    // 각 컨트롤러에 금액 설정
+    for (var entry in _selectedShareholders.entries) {
+      final controller = _customShareControllers[entry.key];
+      if (controller != null) {
+        if (entry.value) {
+          // 선택된 경우
+          final extra = (entry.key == remainderRecipientId && remainder > 0) ? remainder : 0;
+          final amount = shareAmount + extra;
+          controller.text = NumberFormat('#,###').format(amount);
+        } else {
+          // 선택 해제된 경우 0으로
+          controller.text = '';
+        }
+      }
+    }
+  }
+
   Future<void> _saveExpense() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -118,6 +170,19 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           final amount = controller != null ? _parseAmount(controller.text) : 0;
           return {'participantId': id, 'amount': amount};
         }).toList();
+
+        // 직접입력 모드일 때 분배 금액 합계 검증
+        final shareSum = shares.fold<int>(0, (sum, s) => sum + (s['amount'] as int));
+        if (shareSum != totalAmount) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('분배 금액 합계($shareSum원)가 총액($totalAmount원)과 일치하지 않습니다'),
+              backgroundColor: AppTheme.negativeRed,
+            ),
+          );
+          return;
+        }
       }
 
       final expenseData = {
@@ -328,7 +393,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           ],
                           selected: {_splitType},
                           onSelectionChanged: (Set<String> selection) {
-                            setState(() => _splitType = selection.first);
+                            setState(() {
+                              _splitType = selection.first;
+                              // 직접입력 모드로 전환 시 균등 분배값으로 초기화
+                              if (_splitType == 'custom') {
+                                _recalculateCustomShares(activeParticipants);
+                              }
+                            });
                           },
                         ),
                         const SizedBox(height: 16),
@@ -355,6 +426,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             onChanged: (value) {
                               setState(() {
                                 _selectedShareholders[participant.id] = value ?? false;
+                                // 직접입력 모드에서 체크 변경 시 균등 분배 재계산
+                                if (_splitType == 'custom') {
+                                  _recalculateCustomShares(activeParticipants);
+                                }
                               });
                             },
                           );

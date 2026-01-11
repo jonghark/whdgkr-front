@@ -2,12 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whdgkr/core/theme/app_theme.dart';
 import 'package:whdgkr/presentation/providers/trip_provider.dart';
-import 'package:whdgkr/data/models/settlement.dart';
-
-final settlementProvider = FutureProvider.family<Settlement, int>((ref, tripId) async {
-  final repository = ref.watch(tripRepositoryProvider);
-  return repository.getSettlement(tripId);
-});
 
 class SettlementScreen extends ConsumerWidget {
   final int tripId;

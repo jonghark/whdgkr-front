@@ -1,20 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:whdgkr/core/theme/app_theme.dart';
+import 'package:whdgkr/core/utils/phone_formatter.dart';
 import 'package:whdgkr/presentation/providers/trip_provider.dart';
 import 'package:whdgkr/presentation/providers/friend_provider.dart';
-import 'package:whdgkr/data/models/settlement.dart';
 import 'package:whdgkr/data/models/trip.dart';
 import 'package:whdgkr/data/models/expense.dart';
 import 'package:whdgkr/data/models/friend.dart';
 import 'package:intl/intl.dart';
-
-final settlementProvider = FutureProvider.family<Settlement, int>((ref, tripId) async {
-  final repository = ref.watch(tripRepositoryProvider);
-  return repository.getSettlement(tripId);
-});
 
 /// 지출 삭제 확인 다이얼로그
 Future<void> _showDeleteExpenseDialog(
@@ -203,7 +199,7 @@ class TripDetailScreen extends ConsumerWidget {
                                   const Icon(Icons.star, color: Colors.amber, size: 18),
                                   const SizedBox(width: 6),
                                   Text(
-                                    'Owner: ${trip.owner!.name}',
+                                    '대표: ${trip.owner!.name}',
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold,
@@ -855,6 +851,8 @@ class _CompanionManagementSheetState extends ConsumerState<CompanionManagementSh
       ref.invalidate(tripDetailProvider(widget.tripId));
       ref.invalidate(settlementProvider(widget.tripId));
       ref.invalidate(tripsProvider);
+      // 동행자 추가 시 친구 목록도 새로고침 (API에서 자동 등록됨)
+      ref.invalidate(friendsProvider);
 
       if (mounted) {
         _nameController.clear();
@@ -879,7 +877,7 @@ class _CompanionManagementSheetState extends ConsumerState<CompanionManagementSh
   Future<void> _deleteCompanion(Participant companion) async {
     if (companion.isOwner) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Owner는 삭제할 수 없습니다'), backgroundColor: AppTheme.negativeRed),
+        const SnackBar(content: Text('대표는 삭제할 수 없습니다'), backgroundColor: AppTheme.negativeRed),
       );
       return;
     }
@@ -1020,6 +1018,10 @@ class _CompanionManagementSheetState extends ConsumerState<CompanionManagementSh
                                   prefixIcon: Icon(Icons.phone, size: 20),
                                 ),
                                 keyboardType: TextInputType.phone,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'[0-9\-]')),
+                                  PhoneNumberFormatter(),
+                                ],
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -1107,7 +1109,7 @@ class _CompanionManagementSheetState extends ConsumerState<CompanionManagementSh
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: const Text(
-                              'Owner',
+                              '대표',
                               style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.amber),
                             ),
                           ),

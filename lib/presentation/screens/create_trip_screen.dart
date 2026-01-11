@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:whdgkr/core/theme/app_theme.dart';
+import 'package:whdgkr/core/utils/phone_formatter.dart';
 import 'package:whdgkr/presentation/providers/trip_provider.dart';
+import 'package:whdgkr/presentation/providers/friend_provider.dart';
 
 class ParticipantInput {
   TextEditingController nameController = TextEditingController();
@@ -72,9 +75,11 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
           final p = entry.value;
           final name = p.nameController.text.trim();
           if (name.isEmpty) return null;
+          // 전화번호는 숫자만 저장
+          final phoneNormalized = PhoneNumberFormatter.normalize(p.phoneController.text);
           return {
             'name': name,
-            'phone': p.phoneController.text.trim().isEmpty ? null : p.phoneController.text.trim(),
+            'phone': phoneNormalized.isEmpty ? null : phoneNormalized,
             'email': p.emailController.text.trim().isEmpty ? null : p.emailController.text.trim(),
             'isOwner': index == _ownerIndex,
           };
@@ -105,6 +110,8 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
 
       if (mounted) {
         ref.invalidate(tripsProvider);
+        // 여행 생성 시 동행자가 친구 목록에도 자동 등록됨 (API에서 처리)
+        ref.invalidate(friendsProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('여행이 생성되었습니다!'),
@@ -304,7 +311,7 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      '주인(Owner)을 선택해주세요. 나눠떨어지지 않는 금액은 주인에게 귀속됩니다.',
+                      '대표를 선택해주세요. 나눠떨어지지 않는 금액은 대표에게 귀속됩니다.',
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     const SizedBox(height: 16),
@@ -344,7 +351,7 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: const Text(
-                                      'Owner',
+                                      '대표',
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
@@ -402,6 +409,10 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
                                       isDense: true,
                                     ),
                                     keyboardType: TextInputType.phone,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(RegExp(r'[0-9\-]')),
+                                      PhoneNumberFormatter(),
+                                    ],
                                   ),
                                 ),
                                 const SizedBox(width: 8),
