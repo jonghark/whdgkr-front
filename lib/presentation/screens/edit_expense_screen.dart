@@ -106,7 +106,7 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
     }
   }
 
-  Future<void> _updateExpense() async {
+  Future<void> _updateExpense(List<dynamic> activeParticipants) async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedPayerId == null || _expenseDate == null) return;
 
@@ -128,13 +128,33 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
       final totalAmount = _parseAmount(_amountController.text);
       final payments = [{'participantId': _selectedPayerId, 'amount': totalAmount}];
 
+      // 나머지 금액을 받을 동행자 결정 (대표 우선, 없으면 이름순 첫 번째)
+      int? remainderRecipientId;
+      String? firstParticipantName;
+      int? firstParticipantId;
+
+      for (var p in activeParticipants) {
+        if (selectedShareholderIds.contains(p.id)) {
+          if (p.isOwner == true) {
+            remainderRecipientId = p.id;
+          }
+          if (firstParticipantName == null || p.name.compareTo(firstParticipantName) < 0) {
+            firstParticipantName = p.name;
+            firstParticipantId = p.id;
+          }
+        }
+      }
+      remainderRecipientId ??= firstParticipantId;
+
       List<Map<String, dynamic>> shares;
       if (_splitType == 'equal') {
         final shareAmount = totalAmount ~/ selectedShareholderIds.length;
         final remainder = totalAmount % selectedShareholderIds.length;
-        shares = selectedShareholderIds.asMap().entries.map((entry) {
-          final extra = entry.key < remainder ? 1 : 0;
-          return {'participantId': entry.value, 'amount': shareAmount + extra};
+
+        // 나머지는 대표(또는 이름순 첫 번째)에게 귀속
+        shares = selectedShareholderIds.map((id) {
+          final extra = (id == remainderRecipientId && remainder > 0) ? remainder : 0;
+          return {'participantId': id, 'amount': shareAmount + extra};
         }).toList();
       } else {
         shares = selectedShareholderIds.map((id) {
@@ -461,7 +481,7 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
                 SizedBox(
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _updateExpense,
+                    onPressed: _isLoading ? null : () => _updateExpense(activeParticipants),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.accentOrange,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

@@ -116,7 +116,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     }
   }
 
-  Future<void> _saveExpense() async {
+  Future<void> _saveExpense(List<dynamic> activeParticipants) async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedPayerId == null) {
@@ -155,14 +155,34 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         {'participantId': _selectedPayerId, 'amount': totalAmount}
       ];
 
+      // 나머지 금액을 받을 동행자 결정 (대표 우선, 없으면 이름순 첫 번째)
+      int? remainderRecipientId;
+      String? firstParticipantName;
+      int? firstParticipantId;
+
+      for (var p in activeParticipants) {
+        if (selectedShareholderIds.contains(p.id)) {
+          if (p.isOwner == true) {
+            remainderRecipientId = p.id;
+          }
+          if (firstParticipantName == null || p.name.compareTo(firstParticipantName) < 0) {
+            firstParticipantName = p.name;
+            firstParticipantId = p.id;
+          }
+        }
+      }
+      remainderRecipientId ??= firstParticipantId;
+
       // shares 구성
       List<Map<String, dynamic>> shares;
       if (_splitType == 'equal') {
         final shareAmount = totalAmount ~/ selectedShareholderIds.length;
         final remainder = totalAmount % selectedShareholderIds.length;
-        shares = selectedShareholderIds.asMap().entries.map((entry) {
-          final extra = entry.key < remainder ? 1 : 0;
-          return {'participantId': entry.value, 'amount': shareAmount + extra};
+
+        // 나머지는 대표(또는 이름순 첫 번째)에게 귀속
+        shares = selectedShareholderIds.map((id) {
+          final extra = (id == remainderRecipientId && remainder > 0) ? remainder : 0;
+          return {'participantId': id, 'amount': shareAmount + extra};
         }).toList();
       } else {
         shares = selectedShareholderIds.map((id) {
@@ -444,7 +464,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 SizedBox(
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _saveExpense,
+                    onPressed: _isLoading ? null : () => _saveExpense(activeParticipants),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.accentOrange,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
