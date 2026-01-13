@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,6 +22,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _loginIdController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  void _showErrorDetails(BuildContext context, AuthErrorDetails details) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.bug_report, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('에러 상세 (DEV)'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: SelectableText(
+            details.toDisplayString(),
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('닫기'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _login() async {
@@ -108,10 +136,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 if (authState.error != null) ...[
                   const SizedBox(height: 16),
-                  Text(
-                    authState.error!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
-                    textAlign: TextAlign.center,
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          authState.error!,
+                          style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
+                          textAlign: TextAlign.center,
+                        ),
+                        if (kDebugMode && authState.errorDetails != null) ...[
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: () => _showErrorDetails(context, authState.errorDetails!),
+                            icon: const Icon(Icons.bug_report, size: 16),
+                            label: const Text('자세히 보기 (DEV)'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ],
                 const SizedBox(height: 24),

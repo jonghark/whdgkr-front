@@ -1,31 +1,60 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whdgkr/core/storage/secure_storage.dart';
+import 'package:whdgkr/core/utils/auth_logger.dart';
 import 'package:whdgkr/data/models/member.dart';
 import 'package:whdgkr/data/repositories/auth_repository.dart';
 
 enum AuthStatus { initial, authenticated, unauthenticated, loading }
 
+/// 에러 상세 정보 (개발모드 '자세히 보기'용)
+class AuthErrorDetails {
+  final int? statusCode;
+  final String? responseBody;
+  final String? errorMessage;
+  final DateTime timestamp;
+
+  AuthErrorDetails({
+    this.statusCode,
+    this.responseBody,
+    this.errorMessage,
+    DateTime? timestamp,
+  }) : timestamp = timestamp ?? DateTime.now();
+
+  String toDisplayString() {
+    final sb = StringBuffer();
+    sb.writeln('Time: $timestamp');
+    sb.writeln('Status: ${statusCode ?? "N/A"}');
+    sb.writeln('Response: ${responseBody ?? "N/A"}');
+    sb.writeln('Error: ${errorMessage ?? "N/A"}');
+    return sb.toString();
+  }
+}
+
 class AuthState {
   final AuthStatus status;
   final Member? member;
   final String? error;
+  final AuthErrorDetails? errorDetails;
 
   AuthState({
     this.status = AuthStatus.initial,
     this.member,
     this.error,
+    this.errorDetails,
   });
 
   AuthState copyWith({
     AuthStatus? status,
     Member? member,
     String? error,
+    AuthErrorDetails? errorDetails,
   }) {
     return AuthState(
       status: status ?? this.status,
       member: member ?? this.member,
       error: error,
+      errorDetails: errorDetails,
     );
   }
 }
@@ -76,7 +105,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<bool> login(String loginId, String password) async {
-    state = state.copyWith(status: AuthStatus.loading, error: null);
+    state = state.copyWith(status: AuthStatus.loading, error: null, errorDetails: null);
 
     try {
       final response = await _authRepository.login(
@@ -89,30 +118,41 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return true;
     } on DioException catch (e) {
-      print('[AuthNotifier.login] DioException: ${e.response?.statusCode}');
-
-      String errorMessage;
       final statusCode = e.response?.statusCode;
+      final responseBody = e.response?.data?.toString();
+      final errorMessage = e.message;
 
+      String displayMessage;
       if (statusCode == 401) {
-        errorMessage = '아이디 또는 비밀번호가 일치하지 않습니다';
+        displayMessage = '아이디 또는 비밀번호가 올바르지 않습니다';
+      } else if (statusCode == 400) {
+        displayMessage = '입력값을 확인해주세요';
+      } else if (statusCode == 500) {
+        displayMessage = '서버 오류가 발생했습니다 (잠시 후 재시도)';
       } else if (e.type == DioExceptionType.connectionError ||
                  e.type == DioExceptionType.connectionTimeout) {
-        errorMessage = '서버에 연결할 수 없습니다';
+        displayMessage = '서버에 연결할 수 없습니다 (주소/포트 확인)';
       } else {
-        errorMessage = '로그인에 실패했습니다';
+        displayMessage = '오류가 발생했습니다: ${statusCode ?? "알 수 없음"}';
       }
 
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
-        error: errorMessage,
+        error: displayMessage,
+        errorDetails: AuthErrorDetails(
+          statusCode: statusCode,
+          responseBody: responseBody,
+          errorMessage: errorMessage,
+        ),
       );
       return false;
     } catch (e) {
-      print('[AuthNotifier.login] Exception: $e');
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
         error: '로그인에 실패했습니다',
+        errorDetails: AuthErrorDetails(
+          errorMessage: e.toString(),
+        ),
       );
       return false;
     }
@@ -124,7 +164,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String name,
     required String email,
   }) async {
-    state = state.copyWith(status: AuthStatus.loading, error: null);
+    state = state.copyWith(status: AuthStatus.loading, error: null, errorDetails: null);
 
     try {
       await _authRepository.signup(
@@ -136,44 +176,50 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // 회원가입 후 자동 로그인
       return await login(loginId, password);
     } on DioException catch (e) {
-      print('[AuthNotifier.signup] DioException: ${e.response?.statusCode}');
-      print('[AuthNotifier.signup] Response data: ${e.response?.data}');
-
-      String errorMessage;
       final statusCode = e.response?.statusCode;
       final responseData = e.response?.data;
+      final responseBody = responseData?.toString();
+      final errorMessage = e.message;
 
+      String displayMessage;
       if (statusCode == 409) {
         // 서버 응답에서 구체적인 메시지 추출
         final serverMessage = responseData is Map ? responseData['message'] ?? responseData['error'] : null;
         if (serverMessage != null && serverMessage.toString().toLowerCase().contains('email')) {
-          errorMessage = '이미 사용 중인 이메일입니다';
+          displayMessage = '이미 사용 중인 이메일입니다';
         } else if (serverMessage != null && serverMessage.toString().toLowerCase().contains('login')) {
-          errorMessage = '이미 사용 중인 아이디입니다';
+          displayMessage = '이미 사용 중인 아이디입니다';
         } else {
-          errorMessage = '이미 사용 중인 아이디 또는 이메일입니다';
+          displayMessage = '이미 사용 중인 아이디 또는 이메일입니다';
         }
       } else if (statusCode == 400) {
-        errorMessage = '입력값을 확인해주세요';
+        displayMessage = '입력값을 확인해주세요';
       } else if (statusCode == 500) {
-        errorMessage = '서버 오류가 발생했습니다';
+        displayMessage = '서버 오류가 발생했습니다 (잠시 후 재시도)';
       } else if (e.type == DioExceptionType.connectionError ||
                  e.type == DioExceptionType.connectionTimeout) {
-        errorMessage = '서버에 연결할 수 없습니다';
+        displayMessage = '서버에 연결할 수 없습니다 (주소/포트 확인)';
       } else {
-        errorMessage = '회원가입에 실패했습니다';
+        displayMessage = '오류가 발생했습니다: ${statusCode ?? "알 수 없음"}';
       }
 
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
-        error: errorMessage,
+        error: displayMessage,
+        errorDetails: AuthErrorDetails(
+          statusCode: statusCode,
+          responseBody: responseBody,
+          errorMessage: errorMessage,
+        ),
       );
       return false;
     } catch (e) {
-      print('[AuthNotifier.signup] Exception: $e');
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
         error: '회원가입에 실패했습니다',
+        errorDetails: AuthErrorDetails(
+          errorMessage: e.toString(),
+        ),
       );
       return false;
     }
@@ -182,6 +228,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     await _authRepository.logout();
     state = AuthState(status: AuthStatus.unauthenticated);
+  }
+
+  void clearError() {
+    state = state.copyWith(error: null, errorDetails: null);
   }
 }
 

@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:whdgkr/core/theme/app_theme.dart';
+import 'package:whdgkr/core/utils/auth_logger.dart';
 import 'package:whdgkr/presentation/providers/auth_provider.dart';
 import 'package:whdgkr/presentation/screens/trip_list_screen.dart';
 import 'package:whdgkr/presentation/screens/create_trip_screen.dart';
@@ -17,7 +18,9 @@ import 'package:whdgkr/presentation/screens/debug_screen.dart';
 import 'package:whdgkr/presentation/screens/login_screen.dart';
 import 'package:whdgkr/presentation/screens/signup_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AuthLogger.init();
   runApp(const ProviderScope(child: MyApp()));
 }
 
