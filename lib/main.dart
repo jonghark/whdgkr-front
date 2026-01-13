@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:whdgkr/core/theme/app_theme.dart';
+import 'package:whdgkr/presentation/providers/auth_provider.dart';
 import 'package:whdgkr/presentation/screens/trip_list_screen.dart';
 import 'package:whdgkr/presentation/screens/create_trip_screen.dart';
 import 'package:whdgkr/presentation/screens/trip_detail_screen.dart';
@@ -13,90 +14,139 @@ import 'package:whdgkr/presentation/screens/edit_expense_screen.dart';
 import 'package:whdgkr/presentation/screens/friend_list_screen.dart';
 import 'package:whdgkr/presentation/screens/friend_form_screen.dart';
 import 'package:whdgkr/presentation/screens/debug_screen.dart';
+import 'package:whdgkr/presentation/screens/login_screen.dart';
+import 'package:whdgkr/presentation/screens/signup_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-final _router = GoRouter(
-  routes: [
-    ShellRoute(
-      builder: (context, state, child) {
-        return MainShell(child: child);
-      },
-      routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) => const TripListScreen(),
-        ),
-        GoRoute(
-          path: '/friends',
-          builder: (context, state) => const FriendListScreen(),
-        ),
-        // 개발/테스트 전용 디버그 화면 (kDebugMode에서만 노출)
-        if (kDebugMode)
-          GoRoute(
-            path: '/debug',
-            builder: (context, state) => const DebugScreen(),
-          ),
-      ],
-    ),
-    GoRoute(
-      path: '/create-trip',
-      builder: (context, state) => const CreateTripScreen(),
-    ),
-    GoRoute(
-      path: '/trip/:id',
-      builder: (context, state) {
-        final id = int.parse(state.pathParameters['id']!);
-        return TripDetailScreen(tripId: id);
-      },
-    ),
-    GoRoute(
-      path: '/trip/:id/settlement',
-      builder: (context, state) {
-        final id = int.parse(state.pathParameters['id']!);
-        return SettlementScreen(tripId: id);
-      },
-    ),
-    GoRoute(
-      path: '/trip/:id/add-expense',
-      builder: (context, state) {
-        final id = int.parse(state.pathParameters['id']!);
-        return AddExpenseScreen(tripId: id);
-      },
-    ),
-    GoRoute(
-      path: '/trip/:tripId/expense/:expenseId',
-      builder: (context, state) {
-        final tripId = int.parse(state.pathParameters['tripId']!);
-        final expenseId = int.parse(state.pathParameters['expenseId']!);
-        return EditExpenseScreen(tripId: tripId, expenseId: expenseId);
-      },
-    ),
-    GoRoute(
-      path: '/friends/add',
-      builder: (context, state) => const FriendFormScreen(),
-    ),
-    GoRoute(
-      path: '/friends/edit/:id',
-      builder: (context, state) {
-        final id = int.parse(state.pathParameters['id']!);
-        return FriendFormScreen(friendId: id);
-      },
-    ),
-  ],
-);
+final _routerProvider = Provider<GoRouter>((ref) {
+  final authState = ref.watch(authProvider);
 
-class MyApp extends StatelessWidget {
+  return GoRouter(
+    initialLocation: '/',
+    redirect: (context, state) {
+      final isAuthenticated = authState.status == AuthStatus.authenticated;
+      final isLoading = authState.status == AuthStatus.loading;
+      final isInitial = authState.status == AuthStatus.initial;
+      final isAuthRoute = state.matchedLocation == '/login' || state.matchedLocation == '/signup';
+
+      // 초기 또는 로딩 중에는 리다이렉트 하지 않음
+      if (isLoading || isInitial) return null;
+
+      // 미인증 상태에서 인증 페이지가 아니면 로그인으로
+      if (!isAuthenticated && !isAuthRoute) {
+        return '/login';
+      }
+
+      // 인증 상태에서 인증 페이지면 홈으로
+      if (isAuthenticated && isAuthRoute) {
+        return '/';
+      }
+
+      return null;
+    },
+    routes: [
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/signup',
+        builder: (context, state) => const SignupScreen(),
+      ),
+      ShellRoute(
+        builder: (context, state, child) {
+          return MainShell(child: child);
+        },
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => const TripListScreen(),
+          ),
+          GoRoute(
+            path: '/friends',
+            builder: (context, state) => const FriendListScreen(),
+          ),
+          if (kDebugMode)
+            GoRoute(
+              path: '/debug',
+              builder: (context, state) => const DebugScreen(),
+            ),
+        ],
+      ),
+      GoRoute(
+        path: '/create-trip',
+        builder: (context, state) => const CreateTripScreen(),
+      ),
+      GoRoute(
+        path: '/trip/:id',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return TripDetailScreen(tripId: id);
+        },
+      ),
+      GoRoute(
+        path: '/trip/:id/settlement',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return SettlementScreen(tripId: id);
+        },
+      ),
+      GoRoute(
+        path: '/trip/:id/add-expense',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return AddExpenseScreen(tripId: id);
+        },
+      ),
+      GoRoute(
+        path: '/trip/:tripId/expense/:expenseId',
+        builder: (context, state) {
+          final tripId = int.parse(state.pathParameters['tripId']!);
+          final expenseId = int.parse(state.pathParameters['expenseId']!);
+          return EditExpenseScreen(tripId: tripId, expenseId: expenseId);
+        },
+      ),
+      GoRoute(
+        path: '/friends/add',
+        builder: (context, state) => const FriendFormScreen(),
+      ),
+      GoRoute(
+        path: '/friends/edit/:id',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return FriendFormScreen(friendId: id);
+        },
+      ),
+    ],
+  );
+});
+
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // 앱 시작 시 인증 상태 확인
+    Future.microtask(() => ref.read(authProvider.notifier).checkAuth());
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final router = ref.watch(_routerProvider);
+
     return MaterialApp.router(
       title: '여행 정산',
       theme: AppTheme.lightTheme,
-      routerConfig: _router,
+      routerConfig: router,
       debugShowCheckedModeBanner: false,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -112,16 +162,16 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class MainShell extends StatelessWidget {
+class MainShell extends ConsumerWidget {
   final Widget child;
 
   const MainShell({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).uri.path;
+    final authState = ref.watch(authProvider);
 
-    // 디버그 모드에서는 3개 탭, 아니면 2개 탭
     int currentIndex;
     if (location == '/friends') {
       currentIndex = 1;
@@ -132,6 +182,50 @@ class MainShell extends StatelessWidget {
     }
 
     return Scaffold(
+      appBar: AppBar(
+        title: Text(_getTitle(location)),
+        actions: [
+          if (authState.status == AuthStatus.authenticated)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.account_circle),
+              onSelected: (value) async {
+                if (value == 'logout') {
+                  await ref.read(authProvider.notifier).logout();
+                  if (context.mounted) {
+                    context.go('/login');
+                  }
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  enabled: false,
+                  child: Text(
+                    authState.member?.name ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                PopupMenuItem(
+                  enabled: false,
+                  child: Text(
+                    authState.member?.email ?? '',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  ),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout, size: 20),
+                      SizedBox(width: 8),
+                      Text('로그아웃'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
       body: child,
       bottomNavigationBar: NavigationBar(
         selectedIndex: currentIndex,
@@ -155,7 +249,6 @@ class MainShell extends StatelessWidget {
             selectedIcon: Icon(Icons.people),
             label: '친구',
           ),
-          // 개발/테스트 전용 (kDebugMode에서만 노출)
           if (kDebugMode)
             NavigationDestination(
               icon: Icon(Icons.developer_mode_outlined, color: Colors.red.shade300),
@@ -165,5 +258,11 @@ class MainShell extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _getTitle(String location) {
+    if (location == '/friends') return '친구';
+    if (location == '/debug') return '개발자 도구';
+    return '여행';
   }
 }

@@ -113,10 +113,10 @@ class TripRepository {
     }
   }
 
-  Future<Settlement> getSettlement(int tripId) async {
+  Future<Settlement> getSettlement(int tripId, {String scope = 'UNSETTLED'}) async {
     try {
-      debugPrint('[TripRepository.getSettlement] API call: tripId=$tripId');
-      final response = await _apiClient.dio.get('/trips/$tripId/settlement');
+      debugPrint('[TripRepository.getSettlement] API call: tripId=$tripId, scope=$scope');
+      final response = await _apiClient.dio.get('/trips/$tripId/settlement', queryParameters: {'scope': scope});
       debugPrint('[TripRepository.getSettlement] Success: ${response.data}');
       return Settlement.fromJson(response.data);
     } catch (e, stackTrace) {
@@ -145,6 +145,18 @@ class TripRepository {
     } catch (e, stackTrace) {
       _logError('updateExpense', e, stackTrace);
       throw Exception('Failed to update expense: $e');
+    }
+  }
+
+  Future<Expense> updateExpenseSettled(int expenseId, bool settled) async {
+    try {
+      debugPrint('[TripRepository.updateExpenseSettled] API call: expenseId=$expenseId, settled=$settled');
+      final response = await _apiClient.dio.patch('/trips/expenses/$expenseId/settled', data: {'settled': settled});
+      debugPrint('[TripRepository.updateExpenseSettled] Success: ${response.data}');
+      return Expense.fromJson(response.data);
+    } catch (e, stackTrace) {
+      _logError('updateExpenseSettled', e, stackTrace);
+      throw Exception('Failed to update expense settled status: $e');
     }
   }
 }

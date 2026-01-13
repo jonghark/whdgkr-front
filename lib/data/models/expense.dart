@@ -5,6 +5,8 @@ class Expense {
   final int totalAmount;
   final String currency;
   final DateTime createdAt;
+  final String settledYn;
+  final DateTime? settledAt;
   final List<PaymentDetail> payments;
   final List<ShareDetail> shares;
 
@@ -15,9 +17,13 @@ class Expense {
     required this.totalAmount,
     required this.currency,
     required this.createdAt,
+    required this.settledYn,
+    this.settledAt,
     required this.payments,
     required this.shares,
   });
+
+  bool get isSettled => settledYn == 'Y';
 
   factory Expense.fromJson(Map<String, dynamic> json) {
     return Expense(
@@ -27,6 +33,10 @@ class Expense {
       totalAmount: json['totalAmount'] as int,
       currency: json['currency'] as String? ?? 'KRW',
       createdAt: DateTime.parse(json['createdAt'] as String),
+      settledYn: json['settledYn'] as String? ?? 'N',
+      settledAt: json['settledAt'] != null
+          ? DateTime.parse(json['settledAt'] as String)
+          : null,
       payments: (json['payments'] as List<dynamic>?)
               ?.map((p) => PaymentDetail.fromJson(p as Map<String, dynamic>))
               .toList() ??

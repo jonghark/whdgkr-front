@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:whdgkr/core/config/app_config.dart';
+import 'package:whdgkr/core/network/auth_interceptor.dart';
 
 class ApiClient {
   late final Dio _dio;
@@ -15,6 +16,7 @@ class ApiClient {
         },
       ),
     );
+    _dio.interceptors.add(AuthInterceptor(_dio));
   }
 
   Dio get dio => _dio;
