@@ -25,7 +25,7 @@ class AuthInterceptor extends Interceptor {
       final requestOptions = err.requestOptions;
 
       // auth 엔드포인트는 refresh 시도하지 않음
-      if (requestOptions.path.contains('/api/auth/')) {
+      if (requestOptions.path.contains('/auth/')) {
         return handler.next(err);
       }
 
@@ -50,7 +50,7 @@ class AuthInterceptor extends Interceptor {
           headers: {'Content-Type': 'application/json'},
         ));
 
-        final response = await refreshDio.post('/api/auth/refresh', data: {
+        final response = await refreshDio.post('/auth/refresh', data: {
           'refreshToken': refreshToken,
         });
 

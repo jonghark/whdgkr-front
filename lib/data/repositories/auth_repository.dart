@@ -19,35 +19,49 @@ class AuthRepository {
     required String name,
     required String email,
   }) async {
-    print('[AuthRepository.signup] API call');
-    final response = await _dio.post('/api/auth/signup', data: {
-      'loginId': loginId,
-      'password': password,
-      'name': name,
-      'email': email,
-    });
-    print('[AuthRepository.signup] Success');
-    return Member.fromJson(response.data);
+    print('[AuthRepository.signup] Request: POST /auth/signup');
+    print('[AuthRepository.signup] Body: loginId=$loginId, name=$name, email=$email');
+    try {
+      final response = await _dio.post('/auth/signup', data: {
+        'loginId': loginId,
+        'password': password,
+        'name': name,
+        'email': email,
+      });
+      print('[AuthRepository.signup] Success: statusCode=${response.statusCode}');
+      return Member.fromJson(response.data);
+    } on DioException catch (e) {
+      print('[AuthRepository.signup] Error: statusCode=${e.response?.statusCode}');
+      print('[AuthRepository.signup] Error body: ${e.response?.data}');
+      print('[AuthRepository.signup] Error message: ${e.message}');
+      rethrow;
+    }
   }
 
   Future<LoginResponse> login({
     required String loginId,
     required String password,
   }) async {
-    print('[AuthRepository.login] API call');
-    final response = await _dio.post('/api/auth/login', data: {
-      'loginId': loginId,
-      'password': password,
-    });
-    print('[AuthRepository.login] Success');
-    final loginResponse = LoginResponse.fromJson(response.data);
+    print('[AuthRepository.login] Request: POST /auth/login');
+    try {
+      final response = await _dio.post('/auth/login', data: {
+        'loginId': loginId,
+        'password': password,
+      });
+      print('[AuthRepository.login] Success: statusCode=${response.statusCode}');
+      final loginResponse = LoginResponse.fromJson(response.data);
 
-    await SecureStorage.saveTokens(
-      accessToken: loginResponse.accessToken,
-      refreshToken: loginResponse.refreshToken,
-    );
+      await SecureStorage.saveTokens(
+        accessToken: loginResponse.accessToken,
+        refreshToken: loginResponse.refreshToken,
+      );
 
-    return loginResponse;
+      return loginResponse;
+    } on DioException catch (e) {
+      print('[AuthRepository.login] Error: statusCode=${e.response?.statusCode}');
+      print('[AuthRepository.login] Error body: ${e.response?.data}');
+      rethrow;
+    }
   }
 
   Future<TokenResponse> refresh() async {
@@ -57,7 +71,7 @@ class AuthRepository {
       throw Exception('No refresh token');
     }
 
-    final response = await _dio.post('/api/auth/refresh', data: {
+    final response = await _dio.post('/auth/refresh', data: {
       'refreshToken': refreshToken,
     });
     print('[AuthRepository.refresh] Success');
@@ -76,7 +90,7 @@ class AuthRepository {
     try {
       final refreshToken = await SecureStorage.getRefreshToken();
       if (refreshToken != null) {
-        await _dio.post('/api/auth/logout', data: {
+        await _dio.post('/auth/logout', data: {
           'refreshToken': refreshToken,
         });
       }
@@ -91,7 +105,7 @@ class AuthRepository {
   Future<Member> getMe(String accessToken) async {
     print('[AuthRepository.getMe] API call');
     final response = await _dio.get(
-      '/api/members/me',
+      '/members/me',
       options: Options(headers: {'Authorization': 'Bearer $accessToken'}),
     );
     print('[AuthRepository.getMe] Success');
