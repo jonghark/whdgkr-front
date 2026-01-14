@@ -123,6 +123,43 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // DEV 모드 테스트 계정 안내
+                if (kDebugMode) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.amber.shade200),
+                    ),
+                    child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.info_outline, size: 16, color: Colors.amber),
+                            SizedBox(width: 4),
+                            Text(
+                              '테스트용 예시 계정 정보 (DEV)',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          '이름: user1\n아이디: user1\n이메일: user1@example.com\n비밀번호: 1234',
+                          style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          '※ 자동으로 가입되거나 입력되지 않습니다.\n※ 직접 입력 후 회원가입을 진행해주세요.',
+                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 // 아이디 필드
                 TextFormField(
                   controller: _loginIdController,

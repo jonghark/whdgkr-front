@@ -214,7 +214,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
                 TextButton(
-                  onPressed: () => context.go('/signup'),
+                  onPressed: () {
+                    ref.read(authProvider.notifier).clearError();
+                    context.go('/signup');
+                  },
                   child: const Text('계정이 없으신가요? 회원가입'),
                 ),
               ],
