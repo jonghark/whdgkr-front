@@ -1,8 +1,25 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:whdgkr/presentation/providers/auth_provider.dart';
+
+/// 영문 소문자와 숫자만 허용하는 TextInputFormatter
+class LowercaseAlphanumericFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final lowercased = newValue.text.toLowerCase();
+    final filtered = lowercased.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    return TextEditingValue(
+      text: filtered,
+      selection: TextSelection.collapsed(offset: filtered.length),
+    );
+  }
+}
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -15,7 +32,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _loginIdController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -96,44 +112,59 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 48),
+
+                // 아이디 필드
                 TextFormField(
                   controller: _loginIdController,
                   decoration: const InputDecoration(
                     labelText: '아이디',
+                    hintText: '영문 소문자, 숫자',
                     prefixIcon: Icon(Icons.person_outline),
                     border: OutlineInputBorder(),
                   ),
+                  inputFormatters: [
+                    LowercaseAlphanumericFormatter(),
+                  ],
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return '아이디를 입력해주세요';
+                    }
+                    if (!RegExp(r'^[a-z0-9]+$').hasMatch(value)) {
+                      return '아이디는 영문 소문자와 숫자만 가능합니다';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
+
+                // 비밀번호 필드 (숫자 4자리 PIN)
                 TextFormField(
                   controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: '비밀번호',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                      ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
-                    ),
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  decoration: const InputDecoration(
+                    labelText: '비밀번호 (숫자 4자리)',
+                    hintText: '숫자 4자리',
+                    prefixIcon: Icon(Icons.lock_outline),
+                    border: OutlineInputBorder(),
+                    counterText: '',
                   ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(4),
+                  ],
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return '비밀번호를 입력해주세요';
                     }
+                    if (!RegExp(r'^[0-9]{4}$').hasMatch(value)) {
+                      return '비밀번호는 숫자 4자리만 가능합니다';
+                    }
                     return null;
                   },
                 ),
+
                 if (authState.error != null) ...[
                   const SizedBox(height: 16),
                   Container(

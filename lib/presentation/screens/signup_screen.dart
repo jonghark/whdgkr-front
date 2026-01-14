@@ -1,8 +1,42 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:whdgkr/presentation/providers/auth_provider.dart';
+
+/// 영문 소문자와 숫자만 허용하는 TextInputFormatter
+class LowercaseAlphanumericFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // 대문자를 소문자로 변환하고, 영문 소문자와 숫자만 허용
+    final lowercased = newValue.text.toLowerCase();
+    final filtered = lowercased.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    return TextEditingValue(
+      text: filtered,
+      selection: TextSelection.collapsed(offset: filtered.length),
+    );
+  }
+}
+
+/// 이메일용 TextInputFormatter (영문 소문자, 숫자, @, ., _, %, +, - 허용)
+class LowercaseEmailFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final lowercased = newValue.text.toLowerCase();
+    final filtered = lowercased.replaceAll(RegExp(r'[^a-z0-9._%+\-@]'), '');
+    return TextEditingValue(
+      text: filtered,
+      selection: TextSelection.collapsed(offset: filtered.length),
+    );
+  }
+}
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -15,17 +49,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _loginIdController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
     _loginIdController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     _nameController.dispose();
     _emailController.dispose();
     super.dispose();
@@ -93,13 +123,18 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // 아이디 필드
                 TextFormField(
                   controller: _loginIdController,
                   decoration: const InputDecoration(
                     labelText: '아이디',
+                    hintText: '영문 소문자, 숫자만',
                     prefixIcon: Icon(Icons.person_outline),
                     border: OutlineInputBorder(),
                   ),
+                  inputFormatters: [
+                    LowercaseAlphanumericFormatter(),
+                  ],
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return '아이디를 입력해주세요';
@@ -107,10 +142,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     if (value.trim().length < 4) {
                       return '아이디는 4자 이상이어야 합니다';
                     }
+                    if (!RegExp(r'^[a-z0-9]+$').hasMatch(value)) {
+                      return '아이디는 영문 소문자와 숫자만 가능합니다';
+                    }
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
+
+                // 이름 필드
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
@@ -126,75 +166,60 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
+
+                // 이메일 필드
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
                     labelText: '이메일',
+                    hintText: '영문 소문자만 가능',
                     prefixIcon: Icon(Icons.email_outlined),
                     border: OutlineInputBorder(),
                   ),
+                  inputFormatters: [
+                    LowercaseEmailFormatter(),
+                  ],
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return '이메일을 입력해주세요';
                     }
-                    if (!value.contains('@')) {
-                      return '올바른 이메일 형식이 아닙니다';
+                    if (!RegExp(r'^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$').hasMatch(value)) {
+                      return '이메일 형식을 확인해주세요(영문만 가능)';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
+
+                // 비밀번호 필드 (숫자 4자리 PIN)
                 TextFormField(
                   controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: '비밀번호',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                      ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
-                    ),
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  decoration: const InputDecoration(
+                    labelText: '비밀번호 (숫자 4자리)',
+                    hintText: '숫자 4자리 입력',
+                    prefixIcon: Icon(Icons.lock_outline),
+                    border: OutlineInputBorder(),
+                    counterText: '',
                   ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(4),
+                  ],
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return '비밀번호를 입력해주세요';
                     }
-                    if (value.length < 6) {
-                      return '비밀번호는 6자 이상이어야 합니다';
+                    if (!RegExp(r'^[0-9]{4}$').hasMatch(value)) {
+                      return '비밀번호는 숫자 4자리만 가능합니다';
                     }
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
-                  decoration: InputDecoration(
-                    labelText: '비밀번호 확인',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                      ),
-                      onPressed: () {
-                        setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
-                      },
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value != _passwordController.text) {
-                      return '비밀번호가 일치하지 않습니다';
-                    }
-                    return null;
-                  },
-                ),
+
                 if (authState.error != null) ...[
                   const SizedBox(height: 16),
                   Container(
