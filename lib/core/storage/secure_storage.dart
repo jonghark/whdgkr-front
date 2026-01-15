@@ -10,25 +10,48 @@ class SecureStorage {
     required String accessToken,
     required String refreshToken,
   }) async {
-    await _storage.write(key: _accessTokenKey, value: accessToken);
-    await _storage.write(key: _refreshTokenKey, value: refreshToken);
+    try {
+      await _storage.write(key: _accessTokenKey, value: accessToken);
+      await _storage.write(key: _refreshTokenKey, value: refreshToken);
+    } catch (e) {
+      print('[SecureStorage] saveTokens failed: $e');
+    }
   }
 
   static Future<String?> getAccessToken() async {
-    return await _storage.read(key: _accessTokenKey);
+    try {
+      return await _storage.read(key: _accessTokenKey);
+    } catch (e) {
+      print('[SecureStorage] getAccessToken failed: $e');
+      return null;
+    }
   }
 
   static Future<String?> getRefreshToken() async {
-    return await _storage.read(key: _refreshTokenKey);
+    try {
+      return await _storage.read(key: _refreshTokenKey);
+    } catch (e) {
+      print('[SecureStorage] getRefreshToken failed: $e');
+      return null;
+    }
   }
 
   static Future<void> clearTokens() async {
-    await _storage.delete(key: _accessTokenKey);
-    await _storage.delete(key: _refreshTokenKey);
+    try {
+      await _storage.delete(key: _accessTokenKey);
+      await _storage.delete(key: _refreshTokenKey);
+    } catch (e) {
+      print('[SecureStorage] clearTokens failed: $e');
+    }
   }
 
   static Future<bool> hasTokens() async {
-    final accessToken = await getAccessToken();
-    return accessToken != null && accessToken.isNotEmpty;
+    try {
+      final accessToken = await getAccessToken();
+      return accessToken != null && accessToken.isNotEmpty;
+    } catch (e) {
+      print('[SecureStorage] hasTokens failed: $e');
+      return false;
+    }
   }
 }
