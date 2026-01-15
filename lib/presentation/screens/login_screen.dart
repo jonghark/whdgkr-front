@@ -159,10 +159,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _login() async {
+    // 0) 무조건 첫 줄에 로그 (이벤트 도달 확인)
+    debugPrint('[DEV] LOGIN CLICKED - event reached');
+
     // 1) 클릭 즉시 반응
     ref.read(devDiagnosticProvider.notifier).buttonClicked('LOGIN');
     _showSnackBar('로그인 버튼 클릭됨');
     print('[LOGIN] button clicked');
+
+    // 로딩 중이면 중복 클릭 방지
+    final authState = ref.read(authProvider);
+    if (authState.status == AuthStatus.loading) {
+      _showSnackBar('요청 처리 중입니다...', isError: true);
+      return;
+    }
 
     // 2) 검증 실패 시 SnackBar
     if (!_formKey.currentState!.validate()) {
@@ -175,6 +185,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // 3) API 호출 시작 알림
     ref.read(devDiagnosticProvider.notifier).requestSent('/auth/login');
     _showSnackBar('로그인 요청 중...');
+    debugPrint('[DEV] LOGIN FLOW START');
+    debugPrint('[DEV] REQUEST /auth/login');
     print('[LOGIN] calling provider.login()');
 
     final success = await ref.read(authProvider.notifier).login(
@@ -320,7 +332,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ],
                 const SizedBox(height: 24),
                 FilledButton(
-                  onPressed: authState.status == AuthStatus.loading ? null : _login,
+                  onPressed: _login,  // 항상 활성화 - 조건부 null 제거
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: authState.status == AuthStatus.loading

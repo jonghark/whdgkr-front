@@ -138,10 +138,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _signup() async {
+    // 0) 무조건 첫 줄에 로그 (이벤트 도달 확인)
+    debugPrint('[DEV] SIGNUP CLICKED - event reached');
+
     // 1) 클릭 즉시 반응
     ref.read(devDiagnosticProvider.notifier).buttonClicked('SIGNUP');
     _showSnackBar('회원가입 버튼 클릭됨');
     print('[SIGNUP] button clicked');
+
+    // 로딩 중이면 중복 클릭 방지
+    final authState = ref.read(authProvider);
+    if (authState.status == AuthStatus.loading) {
+      _showSnackBar('요청 처리 중입니다...', isError: true);
+      return;
+    }
 
     // 2) 검증 실패 시 SnackBar
     if (!_formKey.currentState!.validate()) {
@@ -154,6 +164,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     // 3) API 호출 시작 알림
     ref.read(devDiagnosticProvider.notifier).requestSent('/auth/signup');
     _showSnackBar('회원가입 요청 중...');
+    debugPrint('[DEV] SIGNUP FLOW START');
+    debugPrint('[DEV] REQUEST /auth/signup');
     print('[SIGNUP] validation passed, calling provider.signup()');
     print('[SIGNUP] loginId=${_loginIdController.text.trim()}, name=${_nameController.text.trim()}, email=${_emailController.text.trim()}');
 
@@ -371,7 +383,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 ],
                 const SizedBox(height: 24),
                 FilledButton(
-                  onPressed: authState.status == AuthStatus.loading ? null : _signup,
+                  onPressed: _signup,  // 항상 활성화 - 조건부 null 제거
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: authState.status == AuthStatus.loading
