@@ -67,16 +67,50 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
+    // 1) 클릭 즉시 반응
+    _showSnackBar('로그인 버튼 클릭됨');
+    print('[LOGIN] button clicked');
+
+    // 2) 검증 실패 시 SnackBar
+    if (!_formKey.currentState!.validate()) {
+      print('[LOGIN] validation failed');
+      _showSnackBar('입력값을 확인해주세요 (아이디/비번)', isError: true);
+      return;
+    }
+
+    // 3) API 호출 시작 알림
+    _showSnackBar('로그인 요청 중...');
+    print('[LOGIN] calling provider.login()');
 
     final success = await ref.read(authProvider.notifier).login(
       _loginIdController.text.trim(),
       _passwordController.text,
     );
 
-    if (success && mounted) {
-      context.go('/');
+    print('[LOGIN] provider.login() returned: $success');
+
+    // 4) 결과 알림
+    if (success) {
+      _showSnackBar('로그인 성공!');
+      if (mounted) {
+        context.go('/');
+      }
+    } else {
+      final authState = ref.read(authProvider);
+      final errorMsg = authState.error ?? '로그인 실패';
+      _showSnackBar('로그인 실패: $errorMsg', isError: true);
     }
   }
 

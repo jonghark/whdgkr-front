@@ -88,14 +88,31 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     );
   }
 
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   Future<void> _signup() async {
+    // 1) 클릭 즉시 반응
+    _showSnackBar('회원가입 버튼 클릭됨');
     print('[SIGNUP] button clicked');
 
+    // 2) 검증 실패 시 SnackBar
     if (!_formKey.currentState!.validate()) {
       print('[SIGNUP] validation failed');
+      _showSnackBar('입력값을 확인해주세요 (이름/이메일/아이디/비번)', isError: true);
       return;
     }
 
+    // 3) API 호출 시작 알림
+    _showSnackBar('회원가입 요청 중...');
     print('[SIGNUP] validation passed, calling provider.signup()');
     print('[SIGNUP] loginId=${_loginIdController.text.trim()}, name=${_nameController.text.trim()}, email=${_emailController.text.trim()}');
 
@@ -108,8 +125,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     print('[SIGNUP] provider.signup() returned: $success');
 
-    if (success && mounted) {
-      context.go('/');
+    // 4) 결과 알림
+    if (success) {
+      _showSnackBar('회원가입 성공!');
+      if (mounted) {
+        context.go('/');
+      }
+    } else {
+      final authState = ref.read(authProvider);
+      final errorMsg = authState.error ?? '회원가입 실패';
+      _showSnackBar('회원가입 실패: $errorMsg', isError: true);
     }
   }
 
