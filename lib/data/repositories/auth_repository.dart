@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:whdgkr/core/config/app_config.dart';
 import 'package:whdgkr/core/storage/secure_storage.dart';
 import 'package:whdgkr/core/utils/auth_logger.dart';
@@ -20,7 +21,8 @@ class AuthRepository {
     required String name,
     required String email,
   }) async {
-    print('[SIGNUP] AuthRepository.signup() called');
+    // [OBS] REPO 레이어 진입 확인
+    debugPrint('[OBS] REPO_ENTER signup');
     const endpoint = '/auth/signup';
     const method = 'POST';
     final body = {
@@ -30,13 +32,14 @@ class AuthRepository {
       'email': email,
     };
 
-    print('[SIGNUP] Request body: loginId=$loginId, name=$name, email=$email');
     await AuthLogger.logRequest(endpoint: endpoint, method: method, body: body);
 
     try {
-      print('[SIGNUP] Sending POST request to $endpoint...');
+      // [OBS] NET 레이어 - 요청 직전
+      debugPrint('[OBS] NET_SEND /auth/signup');
       final response = await _dio.post(endpoint, data: body);
-      print('[SIGNUP] Response received: statusCode=${response.statusCode}');
+      // [OBS] NET 레이어 - 응답 수신
+      debugPrint('[OBS] NET_RESP status=${response.statusCode} error=null');
 
       await AuthLogger.logResponse(
         endpoint: endpoint,
@@ -47,6 +50,8 @@ class AuthRepository {
 
       return Member.fromJson(response.data);
     } on DioException catch (e, stackTrace) {
+      // [OBS] NET 레이어 - 에러 응답
+      debugPrint('[OBS] NET_RESP status=${e.response?.statusCode} error=${e.message}');
       await AuthLogger.logError(
         endpoint: endpoint,
         method: method,

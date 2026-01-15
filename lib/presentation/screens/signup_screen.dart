@@ -138,13 +138,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _signup() async {
-    // 0) 무조건 첫 줄에 로그 (이벤트 도달 확인)
-    debugPrint('[DEV] SIGNUP CLICKED - event reached');
+    // [OBS] UI 레이어 진입 확인
+    debugPrint('[OBS] UI_CLICKED signup');
 
     // 1) 클릭 즉시 반응
     ref.read(devDiagnosticProvider.notifier).buttonClicked('SIGNUP');
     _showSnackBar('회원가입 버튼 클릭됨');
-    print('[SIGNUP] button clicked');
 
     // 로딩 중이면 중복 클릭 방지
     final authState = ref.read(authProvider);
@@ -164,10 +163,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     // 3) API 호출 시작 알림
     ref.read(devDiagnosticProvider.notifier).requestSent('/auth/signup');
     _showSnackBar('회원가입 요청 중...');
-    debugPrint('[DEV] SIGNUP FLOW START');
-    debugPrint('[DEV] REQUEST /auth/signup');
-    print('[SIGNUP] validation passed, calling provider.signup()');
-    print('[SIGNUP] loginId=${_loginIdController.text.trim()}, name=${_nameController.text.trim()}, email=${_emailController.text.trim()}');
+    debugPrint('[OBS] UI_CALL_STATE signup');
 
     final success = await ref.read(authProvider.notifier).signup(
       loginId: _loginIdController.text.trim(),

@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whdgkr/core/storage/secure_storage.dart';
 import 'package:whdgkr/core/utils/auth_logger.dart';
@@ -164,24 +165,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String name,
     required String email,
   }) async {
-    print('[SIGNUP] AuthNotifier.signup() called');
-    print('[SIGNUP] Setting state to loading...');
+    // [OBS] STATE 레이어 진입 확인
+    debugPrint('[OBS] STATE_ENTER signup');
     state = state.copyWith(status: AuthStatus.loading, error: null, errorDetails: null);
-    print('[SIGNUP] State set to loading: ${state.status}');
 
     try {
-      print('[SIGNUP] Calling _authRepository.signup()...');
+      debugPrint('[OBS] STATE_CALL_REPO signup');
       await _authRepository.signup(
         loginId: loginId,
         password: password,
         name: name,
         email: email,
       );
-      print('[SIGNUP] Repository signup successful, attempting auto-login...');
       // 회원가입 후 자동 로그인
       return await login(loginId, password);
     } on DioException catch (e) {
-      print('[SIGNUP] DioException caught: ${e.type}, statusCode=${e.response?.statusCode}');
+      debugPrint('[OBS] STATE_ERROR signup status=${e.response?.statusCode}');
       final statusCode = e.response?.statusCode;
       final responseData = e.response?.data;
       final responseBody = responseData?.toString();
@@ -218,10 +217,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
           errorMessage: errorMessage,
         ),
       );
-      print('[SIGNUP] Setting error state: $displayMessage');
       return false;
     } catch (e) {
-      print('[SIGNUP] Unknown exception caught: $e');
+      debugPrint('[OBS] STATE_ERROR signup unknown=$e');
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
         error: '회원가입에 실패했습니다',
@@ -229,7 +227,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
           errorMessage: e.toString(),
         ),
       );
-      print('[SIGNUP] Setting generic error state');
       return false;
     }
   }

@@ -21,7 +21,14 @@ import 'package:whdgkr/presentation/screens/signup_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AuthLogger.init();
+  // [BOOT] 관측 신호 - 실행 경로 확인
+  debugPrint('[BOOT] main=lib/main.dart, flavor=debug, baseUrl=${_getBaseUrl()}');
   runApp(const ProviderScope(child: MyApp()));
+}
+
+String _getBaseUrl() {
+  // AppConfig에서 baseUrl 가져오기
+  return 'http://localhost:8080/api';
 }
 
 final _routerProvider = Provider<GoRouter>((ref) {
