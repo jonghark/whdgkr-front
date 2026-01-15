@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:whdgkr/core/config/app_config.dart';
 import 'package:whdgkr/core/storage/secure_storage.dart';
+import 'package:whdgkr/presentation/providers/dev_diagnostic_provider.dart';
 
 class AuthInterceptor extends Interceptor {
   final Dio _dio;
@@ -12,6 +14,10 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+    // DEV 모드에서 요청 기록
+    if (kDebugMode) {
+      DevDiagnosticNotifier.recordRequest(options.path);
+    }
     final accessToken = await SecureStorage.getAccessToken();
     if (accessToken != null && accessToken.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $accessToken';
@@ -20,7 +26,32 @@ class AuthInterceptor extends Interceptor {
   }
 
   @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    // DEV 모드에서 응답 기록
+    if (kDebugMode) {
+      DevDiagnosticNotifier.recordHttp(
+        response.statusCode ?? 0,
+        response.requestOptions.path,
+      );
+    }
+    handler.next(response);
+  }
+
+  @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
+    // DEV 모드에서 에러 기록
+    if (kDebugMode) {
+      final statusCode = err.response?.statusCode ?? 0;
+      final endpoint = err.requestOptions.path;
+      String? errorMessage;
+      if (err.type == DioExceptionType.connectionTimeout ||
+          err.type == DioExceptionType.connectionError) {
+        DevDiagnosticNotifier.recordNetworkError(endpoint, '백엔드 연결 실패');
+      } else {
+        errorMessage = err.response?.data?.toString() ?? err.message;
+        DevDiagnosticNotifier.recordHttp(statusCode, endpoint, errorMessage: errorMessage);
+      }
+    }
     if (err.response?.statusCode == 401) {
       final requestOptions = err.requestOptions;
 

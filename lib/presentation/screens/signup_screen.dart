@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:whdgkr/presentation/providers/auth_provider.dart';
+import 'package:whdgkr/presentation/providers/dev_diagnostic_provider.dart';
 
 /// 영문 소문자와 숫자만 허용하는 TextInputFormatter
 class LowercaseAlphanumericFormatter extends TextInputFormatter {
@@ -99,19 +100,59 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     );
   }
 
+  Widget _buildDiagnosticPanel(DevDiagnosticState diagState) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade900,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.grey.shade700),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.terminal, size: 14, color: Colors.green),
+              SizedBox(width: 4),
+              Text('DEV 진단 패널', style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const Divider(color: Colors.grey, height: 8),
+          Text('Action: ${diagState.lastAction}', style: const TextStyle(color: Colors.white, fontSize: 10, fontFamily: 'monospace')),
+          Text('Endpoint: ${diagState.lastEndpoint ?? '-'}', style: const TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace')),
+          Text('Status: ${diagState.lastStatusCode ?? '-'}', style: TextStyle(color: _getStatusColor(diagState.lastStatusCode), fontSize: 10, fontFamily: 'monospace')),
+          Text('Error: ${diagState.lastErrorMessage ?? '-'}', style: const TextStyle(color: Colors.redAccent, fontSize: 10, fontFamily: 'monospace')),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(int? statusCode) {
+    if (statusCode == null) return Colors.white70;
+    if (statusCode >= 200 && statusCode < 300) return Colors.green;
+    if (statusCode >= 400 && statusCode < 500) return Colors.orange;
+    if (statusCode >= 500) return Colors.red;
+    return Colors.white70;
+  }
+
   Future<void> _signup() async {
     // 1) 클릭 즉시 반응
+    ref.read(devDiagnosticProvider.notifier).buttonClicked('SIGNUP');
     _showSnackBar('회원가입 버튼 클릭됨');
     print('[SIGNUP] button clicked');
 
     // 2) 검증 실패 시 SnackBar
     if (!_formKey.currentState!.validate()) {
+      ref.read(devDiagnosticProvider.notifier).validateFail('SIGNUP');
       print('[SIGNUP] validation failed');
       _showSnackBar('입력값을 확인해주세요 (이름/이메일/아이디/비번)', isError: true);
       return;
     }
 
     // 3) API 호출 시작 알림
+    ref.read(devDiagnosticProvider.notifier).requestSent('/auth/signup');
     _showSnackBar('회원가입 요청 중...');
     print('[SIGNUP] validation passed, calling provider.signup()');
     print('[SIGNUP] loginId=${_loginIdController.text.trim()}, name=${_nameController.text.trim()}, email=${_emailController.text.trim()}');
@@ -141,6 +182,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+    final diagState = ref.watch(devDiagnosticProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -158,6 +200,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // DEV 모드 진단 패널
+                if (kDebugMode) _buildDiagnosticPanel(diagState),
                 // DEV 모드 테스트 계정 안내
                 if (kDebugMode) ...[
                   Container(

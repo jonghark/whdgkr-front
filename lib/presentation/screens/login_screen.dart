@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:whdgkr/presentation/providers/auth_provider.dart';
+import 'package:whdgkr/presentation/providers/dev_diagnostic_provider.dart';
+import 'package:whdgkr/core/config/app_config.dart';
+import 'package:dio/dio.dart';
 
 /// 영문 소문자와 숫자만 허용하는 TextInputFormatter
 class LowercaseAlphanumericFormatter extends TextInputFormatter {
@@ -32,6 +35,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _loginIdController = TextEditingController();
   final _passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // DEV 모드에서 화면 진입 시 Health Check 실행
+    if (kDebugMode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _performHealthCheck();
+      });
+    }
+  }
+
+  Future<void> _performHealthCheck() async {
+    final notifier = ref.read(devDiagnosticProvider.notifier);
+    notifier.setAction('HEALTH_CHECK', endpoint: '/dev/stats');
+    try {
+      final dio = Dio(BaseOptions(
+        baseUrl: AppConfig.apiBaseUrl,
+        connectTimeout: const Duration(seconds: 3),
+        receiveTimeout: const Duration(seconds: 3),
+      ));
+      final response = await dio.get('/dev/stats');
+      notifier.httpResponse(response.statusCode ?? 200, endpoint: '/dev/stats');
+      notifier.backendOk();
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        notifier.backendDown();
+      } else {
+        notifier.httpResponse(e.response?.statusCode ?? 0, endpoint: '/dev/stats', errorMessage: e.message);
+      }
+    } catch (e) {
+      notifier.networkError(e.toString());
+    }
+  }
 
   @override
   void dispose() {
@@ -78,19 +116,64 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
+  Widget _buildDiagnosticPanel(DevDiagnosticState diagState) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade900,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.grey.shade700),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.terminal, size: 14, color: Colors.green),
+              const SizedBox(width: 4),
+              const Text('DEV 진단 패널', style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
+              const Spacer(),
+              GestureDetector(
+                onTap: _performHealthCheck,
+                child: const Icon(Icons.refresh, size: 14, color: Colors.green),
+              ),
+            ],
+          ),
+          const Divider(color: Colors.grey, height: 8),
+          Text('Action: ${diagState.lastAction}', style: const TextStyle(color: Colors.white, fontSize: 10, fontFamily: 'monospace')),
+          Text('Endpoint: ${diagState.lastEndpoint ?? '-'}', style: const TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace')),
+          Text('Status: ${diagState.lastStatusCode ?? '-'}', style: TextStyle(color: _getStatusColor(diagState.lastStatusCode), fontSize: 10, fontFamily: 'monospace')),
+          Text('Error: ${diagState.lastErrorMessage ?? '-'}', style: const TextStyle(color: Colors.redAccent, fontSize: 10, fontFamily: 'monospace')),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(int? statusCode) {
+    if (statusCode == null) return Colors.white70;
+    if (statusCode >= 200 && statusCode < 300) return Colors.green;
+    if (statusCode >= 400 && statusCode < 500) return Colors.orange;
+    if (statusCode >= 500) return Colors.red;
+    return Colors.white70;
+  }
+
   Future<void> _login() async {
     // 1) 클릭 즉시 반응
+    ref.read(devDiagnosticProvider.notifier).buttonClicked('LOGIN');
     _showSnackBar('로그인 버튼 클릭됨');
     print('[LOGIN] button clicked');
 
     // 2) 검증 실패 시 SnackBar
     if (!_formKey.currentState!.validate()) {
+      ref.read(devDiagnosticProvider.notifier).validateFail('LOGIN');
       print('[LOGIN] validation failed');
       _showSnackBar('입력값을 확인해주세요 (아이디/비번)', isError: true);
       return;
     }
 
     // 3) API 호출 시작 알림
+    ref.read(devDiagnosticProvider.notifier).requestSent('/auth/login');
     _showSnackBar('로그인 요청 중...');
     print('[LOGIN] calling provider.login()');
 
@@ -117,6 +200,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+    final diagState = ref.watch(devDiagnosticProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -130,6 +214,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // DEV 모드 진단 패널
+                if (kDebugMode) _buildDiagnosticPanel(diagState),
                 const SizedBox(height: 48),
                 const Icon(
                   Icons.card_travel,
