@@ -89,7 +89,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _signup() async {
-    if (!_formKey.currentState!.validate()) return;
+    print('[SIGNUP] button clicked');
+
+    if (!_formKey.currentState!.validate()) {
+      print('[SIGNUP] validation failed');
+      return;
+    }
+
+    print('[SIGNUP] validation passed, calling provider.signup()');
+    print('[SIGNUP] loginId=${_loginIdController.text.trim()}, name=${_nameController.text.trim()}, email=${_emailController.text.trim()}');
 
     final success = await ref.read(authProvider.notifier).signup(
       loginId: _loginIdController.text.trim(),
@@ -97,6 +105,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
     );
+
+    print('[SIGNUP] provider.signup() returned: $success');
 
     if (success && mounted) {
       context.go('/');

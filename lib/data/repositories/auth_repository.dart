@@ -20,6 +20,7 @@ class AuthRepository {
     required String name,
     required String email,
   }) async {
+    print('[SIGNUP] AuthRepository.signup() called');
     const endpoint = '/auth/signup';
     const method = 'POST';
     final body = {
@@ -29,10 +30,13 @@ class AuthRepository {
       'email': email,
     };
 
+    print('[SIGNUP] Request body: loginId=$loginId, name=$name, email=$email');
     await AuthLogger.logRequest(endpoint: endpoint, method: method, body: body);
 
     try {
+      print('[SIGNUP] Sending POST request to $endpoint...');
       final response = await _dio.post(endpoint, data: body);
+      print('[SIGNUP] Response received: statusCode=${response.statusCode}');
 
       await AuthLogger.logResponse(
         endpoint: endpoint,
