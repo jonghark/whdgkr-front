@@ -52,6 +52,7 @@ class AuthInterceptor extends Interceptor {
         DevDiagnosticNotifier.recordHttp(statusCode, endpoint, errorMessage: errorMessage);
       }
     }
+
     if (err.response?.statusCode == 401) {
       final requestOptions = err.requestOptions;
 
@@ -60,6 +61,13 @@ class AuthInterceptor extends Interceptor {
         return handler.next(err);
       }
 
+      // 토큰이 없으면 조용히 넘어감 (로그인 화면으로 이미 리다이렉트됨)
+      final accessToken = await SecureStorage.getAccessToken();
+      if (accessToken == null || accessToken.isEmpty) {
+        return handler.next(err);
+      }
+
+      // 토큰이 있는데도 401이면 refresh 시도
       if (_isRefreshing) {
         // 이미 refresh 중이면 대기열에 추가
         _pendingRequests.add((options: requestOptions, handler: handler));
