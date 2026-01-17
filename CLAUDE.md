@@ -13,6 +13,20 @@ flutter pub get
 flutter run
 ```
 
+### macOS 실행 시 포그라운드 문제 해결
+macOS에서 `flutter run -d macos` 실행 시 "Failed to foreground app; open returned 1" 에러가 발생하는 경우:
+
+```bash
+# 자동 진단 및 복구 스크립트 실행
+./tools/macos_launch_fix.sh
+```
+
+이 스크립트는:
+1. 앱이 실행 중인지 확인
+2. 실행 중이면 포그라운드로 activate 시도
+3. activate 실패 시 프로세스 종료 후 재실행 안내
+4. 실행되지 않은 경우 원인 진단 (crash, LaunchServices 캐시 등)
+
 ## 책임 범위
 - 화면(UI)
 - 사용자 입력 처리
@@ -147,3 +161,31 @@ whdgkr-front/
   - DELETE 방식 사용 (TRUNCATE/DROP 절대 금지)
   - 현재 데이터 통계 조회 기능
   - DevRepository, DevProvider 추가
+
+---
+
+### 2026-01-17
+
+#### 인증 / 보안
+- 로그인 전 보호 API 호출 차단
+  - TripProvider에서 미인증 시 빈 리스트 반환 (API 호출 안 함)
+  - tripDetailProvider, settlementProvider: 미인증 시 "로그인 필요" 에러
+  - 401 에러 스팸 방지: 토큰 없으면 조용히 넘어감
+
+- macOS SecureStorage Keychain -34018 에러 대응
+  - DEV 모드: in-memory 폴백 (앱 재실행 시 토큰 소실)
+  - 릴리즈 모드: 명확한 에러 메시지 throw
+  - `[SecureStorage] fallback_to_memory due to -34018` 로그
+
+- 회원가입/로그인 API 호출 추적 로그 강화
+  - `### SIGNUP_BTN_CLICK ###`, `### SIGNUP_CALL_START/DONE/FAIL ###`
+  - `### HTTP_REQ/RES/ERR ###` (Dio 인터셉터)
+  - 백엔드: `### SIGNUP_HIT ### uri=/api/auth/signup id=xxx email=xxx`
+  - JwtAuthenticationFilter: /auth 경로 이중 안전장치
+
+#### macOS 실행 문제 해결
+- macOS "Failed to foreground app; open returned 1" 자동 진단 및 복구
+  - `tools/macos_launch_fix.sh` 스크립트 추가
+  - 앱 실행 여부 확인 → AppleScript activate 시도 → 실패 시 프로세스 종료
+  - 원인 진단: already_running, crash_exit, launchservices_cache, focus_permission
+  - `[LAUNCH_DIAG] running=true/false pid=xxx` 형식 로그
