@@ -39,36 +39,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    // DEV 모드에서 화면 진입 시 Health Check 실행
-    if (kDebugMode) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _performHealthCheck();
-      });
-    }
-  }
-
-  Future<void> _performHealthCheck() async {
-    final notifier = ref.read(devDiagnosticProvider.notifier);
-    notifier.setAction('HEALTH_CHECK', endpoint: '/dev/stats');
-    try {
-      final dio = Dio(BaseOptions(
-        baseUrl: AppConfig.apiBaseUrl,
-        connectTimeout: const Duration(seconds: 3),
-        receiveTimeout: const Duration(seconds: 3),
-      ));
-      final response = await dio.get('/dev/stats');
-      notifier.httpResponse(response.statusCode ?? 200, endpoint: '/dev/stats');
-      notifier.backendOk();
-    } on DioException catch (e) {
-      if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.connectionError) {
-        notifier.backendDown();
-      } else {
-        notifier.httpResponse(e.response?.statusCode ?? 0, endpoint: '/dev/stats', errorMessage: e.message);
-      }
-    } catch (e) {
-      notifier.networkError(e.toString());
-    }
+    // Auth 화면에서는 health check 실행 안 함 (회원가입 요청과 혼선 방지)
   }
 
   @override
@@ -128,16 +99,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.terminal, size: 14, color: Colors.green),
-              const SizedBox(width: 4),
-              const Text('DEV 진단 패널', style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
-              const Spacer(),
-              GestureDetector(
-                onTap: _performHealthCheck,
-                child: const Icon(Icons.refresh, size: 14, color: Colors.green),
-              ),
+              Icon(Icons.terminal, size: 14, color: Colors.green),
+              SizedBox(width: 4),
+              Text('DEV 진단 패널 (Auth 화면에서는 stats 호출 안 함)', style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
             ],
           ),
           const Divider(color: Colors.grey, height: 8),

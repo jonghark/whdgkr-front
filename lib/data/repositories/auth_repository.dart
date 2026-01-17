@@ -14,26 +14,18 @@ class AuthRepository {
     receiveTimeout: const Duration(seconds: 3),
     headers: {'Content-Type': 'application/json'},
   )) {
-    // 최소 로깅 인터셉터 (signup/login 요청만)
+    // HTTP 요청/응답 로깅 인터셉터
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
-        if (options.path.contains('/auth/signup') || options.path.contains('/auth/login')) {
-          print('[AUTH_DIO] ${options.method} ${options.path}');
-        }
+        print('### HTTP_REQ ### ${options.method} ${options.baseUrl}${options.path}');
         handler.next(options);
       },
       onResponse: (response, handler) {
-        if (response.requestOptions.path.contains('/auth/signup') ||
-            response.requestOptions.path.contains('/auth/login')) {
-          print('[AUTH_DIO] ${response.requestOptions.method} ${response.requestOptions.path} -> ${response.statusCode}');
-        }
+        print('### HTTP_RES ### ${response.statusCode} ${response.requestOptions.path}');
         handler.next(response);
       },
       onError: (error, handler) {
-        if (error.requestOptions.path.contains('/auth/signup') ||
-            error.requestOptions.path.contains('/auth/login')) {
-          print('[AUTH_DIO] ${error.requestOptions.method} ${error.requestOptions.path} -> ERROR ${error.response?.statusCode ?? "NO_RESPONSE"}');
-        }
+        print('### HTTP_ERR ### ${error.response?.statusCode ?? "NO_RESPONSE"} ${error.requestOptions.path} ${error.message}');
         handler.next(error);
       },
     ));

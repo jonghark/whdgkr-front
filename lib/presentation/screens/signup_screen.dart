@@ -138,9 +138,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _signup() async {
-    // [SIGNUP_BTN] 버튼 클릭 확인 (최우선 로그)
-    print('[SIGNUP_BTN] clicked');
-    debugPrint('[OBS] UI_CLICKED signup');
+    print('### SIGNUP_BTN_CLICK ###');
 
     // 1) 클릭 즉시 반응
     ref.read(devDiagnosticProvider.notifier).buttonClicked('SIGNUP');
@@ -156,36 +154,40 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     // 2) 검증 실패 시 SnackBar
     if (!_formKey.currentState!.validate()) {
       ref.read(devDiagnosticProvider.notifier).validateFail('SIGNUP');
-      print('[SIGNUP] validation failed');
       _showSnackBar('입력값을 확인해주세요 (이름/이메일/아이디/비번)', isError: true);
       return;
     }
 
-    // 3) API 호출 시작 알림
-    print('[SIGNUP_BTN] calling POST /auth/signup');
+    // 3) API 호출 시작
+    print('### SIGNUP_CALL_START ###');
     ref.read(devDiagnosticProvider.notifier).requestSent('/auth/signup');
     _showSnackBar('회원가입 요청 중...');
-    debugPrint('[OBS] UI_CALL_STATE signup');
 
-    final success = await ref.read(authProvider.notifier).signup(
-      loginId: _loginIdController.text.trim(),
-      password: _passwordController.text,
-      name: _nameController.text.trim(),
-      email: _emailController.text.trim(),
-    );
+    try {
+      final success = await ref.read(authProvider.notifier).signup(
+        loginId: _loginIdController.text.trim(),
+        password: _passwordController.text,
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+      );
 
-    print('[SIGNUP] provider.signup() returned: $success');
+      print('### SIGNUP_CALL_DONE ### success=$success');
 
-    // 4) 결과 알림
-    if (success) {
-      _showSnackBar('회원가입 성공!');
-      if (mounted) {
-        context.go('/');
+      // 4) 결과 알림
+      if (success) {
+        _showSnackBar('회원가입 성공!');
+        if (mounted) {
+          context.go('/');
+        }
+      } else {
+        final authState = ref.read(authProvider);
+        final errorMsg = authState.error ?? '회원가입 실패';
+        _showSnackBar('회원가입 실패: $errorMsg', isError: true);
       }
-    } else {
-      final authState = ref.read(authProvider);
-      final errorMsg = authState.error ?? '회원가입 실패';
-      _showSnackBar('회원가입 실패: $errorMsg', isError: true);
+    } catch (e) {
+      print('### SIGNUP_CALL_FAIL ### $e');
+      _showSnackBar('회원가입 요청 실패: $e', isError: true);
+      rethrow;
     }
   }
 
