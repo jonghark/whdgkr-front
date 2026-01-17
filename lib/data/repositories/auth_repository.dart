@@ -13,7 +13,31 @@ class AuthRepository {
     connectTimeout: const Duration(seconds: 5),
     receiveTimeout: const Duration(seconds: 3),
     headers: {'Content-Type': 'application/json'},
-  ));
+  )) {
+    // 최소 로깅 인터셉터 (signup/login 요청만)
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        if (options.path.contains('/auth/signup') || options.path.contains('/auth/login')) {
+          print('[AUTH_DIO] ${options.method} ${options.path}');
+        }
+        handler.next(options);
+      },
+      onResponse: (response, handler) {
+        if (response.requestOptions.path.contains('/auth/signup') ||
+            response.requestOptions.path.contains('/auth/login')) {
+          print('[AUTH_DIO] ${response.requestOptions.method} ${response.requestOptions.path} -> ${response.statusCode}');
+        }
+        handler.next(response);
+      },
+      onError: (error, handler) {
+        if (error.requestOptions.path.contains('/auth/signup') ||
+            error.requestOptions.path.contains('/auth/login')) {
+          print('[AUTH_DIO] ${error.requestOptions.method} ${error.requestOptions.path} -> ERROR ${error.response?.statusCode ?? "NO_RESPONSE"}');
+        }
+        handler.next(error);
+      },
+    ));
+  }
 
   Future<Member> signup({
     required String loginId,

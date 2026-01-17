@@ -138,7 +138,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _signup() async {
-    // [OBS] UI 레이어 진입 확인
+    // [SIGNUP_BTN] 버튼 클릭 확인 (최우선 로그)
+    print('[SIGNUP_BTN] clicked');
     debugPrint('[OBS] UI_CLICKED signup');
 
     // 1) 클릭 즉시 반응
@@ -161,6 +162,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
 
     // 3) API 호출 시작 알림
+    print('[SIGNUP_BTN] calling POST /auth/signup');
     ref.read(devDiagnosticProvider.notifier).requestSent('/auth/signup');
     _showSnackBar('회원가입 요청 중...');
     debugPrint('[OBS] UI_CALL_STATE signup');
