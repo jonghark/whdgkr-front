@@ -17,6 +17,7 @@ import 'package:whdgkr/presentation/screens/friend_form_screen.dart';
 import 'package:whdgkr/presentation/screens/debug_screen.dart';
 import 'package:whdgkr/presentation/screens/login_screen.dart';
 import 'package:whdgkr/presentation/screens/signup_screen.dart';
+import 'package:whdgkr/presentation/screens/reset_password_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,7 +41,9 @@ final _routerProvider = Provider<GoRouter>((ref) {
       final isAuthenticated = authState.status == AuthStatus.authenticated;
       final isLoading = authState.status == AuthStatus.loading;
       final isInitial = authState.status == AuthStatus.initial;
-      final isAuthRoute = state.matchedLocation == '/login' || state.matchedLocation == '/signup';
+      final isAuthRoute = state.matchedLocation == '/login' ||
+                          state.matchedLocation == '/signup' ||
+                          state.matchedLocation == '/reset-password';
 
       debugPrint('[ROUTER] location=${state.matchedLocation}, auth=${authState.status}, isAuthRoute=$isAuthRoute');
 
@@ -73,6 +76,10 @@ final _routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/signup',
         builder: (context, state) => const SignupScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) => const ResetPasswordScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) {

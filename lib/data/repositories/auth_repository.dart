@@ -236,4 +236,41 @@ class AuthRepository {
       rethrow;
     }
   }
+
+  Future<void> resetPassword({
+    required String loginId,
+    required String email,
+    required String newPassword,
+  }) async {
+    const endpoint = '/auth/reset-password';
+    const method = 'POST';
+    final body = {
+      'loginId': loginId,
+      'email': email,
+      'newPassword': newPassword,
+    };
+
+    await AuthLogger.logRequest(endpoint: endpoint, method: method, body: body);
+
+    try {
+      final response = await _dio.post(endpoint, data: body);
+
+      await AuthLogger.logResponse(
+        endpoint: endpoint,
+        method: method,
+        statusCode: response.statusCode ?? 200,
+        responseBody: response.data,
+      );
+    } on DioException catch (e, stackTrace) {
+      await AuthLogger.logError(
+        endpoint: endpoint,
+        method: method,
+        statusCode: e.response?.statusCode,
+        responseBody: e.response?.data,
+        errorMessage: e.message ?? 'Unknown error',
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
+  }
 }

@@ -240,6 +240,49 @@ class AuthNotifier extends StateNotifier<AuthState> {
   void clearError() {
     state = state.copyWith(error: null, errorDetails: null);
   }
+
+  Future<Map<String, dynamic>> resetPassword({
+    required String loginId,
+    required String email,
+    required String newPassword,
+  }) async {
+    try {
+      await _authRepository.resetPassword(
+        loginId: loginId,
+        email: email,
+        newPassword: newPassword,
+      );
+      return {'success': true};
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
+      final responseData = e.response?.data;
+
+      String displayMessage;
+      if (statusCode == 404) {
+        displayMessage = '아이디 또는 이메일이 일치하지 않습니다';
+      } else if (statusCode == 400) {
+        displayMessage = '입력값을 확인해주세요 [400]';
+      } else if (statusCode == 500) {
+        displayMessage = '서버 오류 [500]';
+      } else if (e.type == DioExceptionType.connectionError ||
+                 e.type == DioExceptionType.connectionTimeout) {
+        displayMessage = '서버 연결 실패 (주소/포트 확인)';
+      } else {
+        displayMessage = '오류 [${statusCode ?? "NO_STATUS"}]: ${e.message}';
+      }
+
+      return {
+        'success': false,
+        'error': displayMessage,
+        'statusCode': statusCode,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': '비밀번호 재설정 실패: $e',
+      };
+    }
+  }
 }
 
 final authRepositoryProvider = Provider((ref) => AuthRepository());
