@@ -54,6 +54,18 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _emailController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // 사용자가 아이디 필드를 수정하면 에러 메시지 자동 제거
+    _loginIdController.addListener(() {
+      final authState = ref.read(authProvider);
+      if (authState.error != null) {
+        ref.read(authProvider.notifier).clearError();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _loginIdController.dispose();
     _passwordController.dispose();

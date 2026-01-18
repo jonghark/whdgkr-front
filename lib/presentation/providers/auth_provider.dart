@@ -200,11 +200,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (statusCode == 409) {
         final serverMessage = responseData is Map ? responseData['message'] ?? responseData['error'] : null;
         if (serverMessage != null && serverMessage.toString().toLowerCase().contains('email')) {
-          displayMessage = '이미 사용 중인 이메일입니다 [409]';
+          displayMessage = '이미 사용 중인 이메일입니다. 다른 이메일을 사용해주세요.';
         } else if (serverMessage != null && serverMessage.toString().toLowerCase().contains('login')) {
-          displayMessage = '이미 사용 중인 아이디입니다 [409]';
+          displayMessage = '이미 사용 중인 아이디입니다. 다른 아이디를 선택해주세요.';
         } else {
-          displayMessage = '이미 사용 중인 아이디 또는 이메일입니다 [409]';
+          displayMessage = '이미 사용 중인 아이디 또는 이메일입니다. 다른 정보를 입력해주세요.';
         }
       } else if (statusCode == 400) {
         displayMessage = '입력값을 확인해주세요 [400]';
