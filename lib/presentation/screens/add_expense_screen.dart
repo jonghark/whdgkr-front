@@ -256,9 +256,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           final activeParticipants = trip.activeParticipants;
 
           // 초기화
-          if (_selectedShareholders.isEmpty) {
+          if (_customShareControllers.isEmpty) {
             for (var participant in activeParticipants) {
-              _selectedShareholders[participant.id] = true;
+              _selectedShareholders[participant.id] = false;
               _customShareControllers[participant.id] = TextEditingController();
             }
           }
