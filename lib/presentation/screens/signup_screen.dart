@@ -53,6 +53,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -60,9 +61,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     // 사용자가 아이디 필드를 수정하면 에러 메시지 자동 제거
     _loginIdController.addListener(() {
       if (!mounted) return;
-      final authState = ref.read(authProvider);
-      if (authState.error != null) {
-        ref.read(authProvider.notifier).clearError();
+      if (_errorMessage != null) {
+        setState(() => _errorMessage = null);
       }
     });
   }
@@ -180,35 +180,35 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       ref.read(devDiagnosticProvider.notifier).requestSent('/auth/signup');
       debugPrint('[SIGNUP] Calling authProvider.signup()');
 
-      final success = await ref.read(authProvider.notifier).signup(
+      final result = await ref.read(authProvider.notifier).signup(
         loginId: _loginIdController.text.trim(),
         password: _passwordController.text,
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
       );
 
-      debugPrint('[SIGNUP] Result: $success');
+      debugPrint('[SIGNUP] Result: $result');
 
       // await 후 반드시 mounted 체크 (ref after disposed 방지)
       if (!mounted) return;
 
       // 결과 처리
-      if (success) {
+      if (result['success'] == true) {
         _showSnackBar('회원가입 성공!');
         if (mounted) {
           context.go('/');
         }
       } else {
         // 실패 시 에러 메시지만 표시하고 현재 페이지 유지
-        if (!mounted) return;
-        final authState = ref.read(authProvider);
-        final errorMsg = authState.error ?? '회원가입 실패';
-        _showSnackBar('회원가입 실패: $errorMsg', isError: true);
+        // 로컬 상태에만 저장 (authProvider state 변경 없음 = 라우터 리다이렉트 방지)
+        setState(() => _errorMessage = result['error'] ?? '회원가입 실패');
+        _showSnackBar('회원가입 실패: ${result['error'] ?? '알 수 없는 오류'}', isError: true);
       }
     } catch (e, stackTrace) {
       debugPrint('[SIGNUP] Unexpected error: $e');
       debugPrint('[SIGNUP] StackTrace: $stackTrace');
       if (!mounted) return;
+      setState(() => _errorMessage = '회원가입 중 오류 발생: $e');
       _showSnackBar('회원가입 중 오류 발생: $e', isError: true);
     } finally {
       // 로딩 상태 종료 (mounted 체크 후)
@@ -220,7 +220,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authProvider);
     final diagState = ref.watch(devDiagnosticProvider);
 
     return Scaffold(
@@ -375,7 +374,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   },
                 ),
 
-                if (authState.error != null) ...[
+                if (_errorMessage != null) ...[
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -383,28 +382,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       color: Theme.of(context).colorScheme.errorContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Column(
-                      children: [
-                        Text(
-                          authState.error!,
-                          style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
-                          textAlign: TextAlign.center,
-                        ),
-                        if (kDebugMode && authState.errorDetails != null) ...[
-                          const SizedBox(height: 8),
-                          TextButton.icon(
-                            onPressed: () => _showErrorDetails(context, authState.errorDetails!),
-                            icon: const Icon(Icons.bug_report, size: 16),
-                            label: const Text('자세히 보기 (DEV)'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                          ),
-                        ],
-                      ],
+                    child: Text(
+                      _errorMessage!,
+                      style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ],

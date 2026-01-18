@@ -166,16 +166,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> signup({
+  Future<Map<String, dynamic>> signup({
     required String loginId,
     required String password,
     required String name,
     required String email,
   }) async {
-    // 회원가입은 전역 auth status를 변경하지 않음 (router redirect 방지)
-    // 에러 메시지만 state에 저장하고, 성공 시에만 login()을 호출하여 인증 상태 변경
+    // 회원가입은 전역 auth state를 전혀 변경하지 않음 (router redirect 방지)
+    // 결과를 Map으로 반환하여 UI에서 직접 처리
     debugPrint('[SIGNUP_PROVIDER] Enter');
-    state = state.copyWith(error: null, errorDetails: null);
 
     try {
       debugPrint('[SIGNUP_PROVIDER] Calling repository.signup()');
@@ -187,16 +186,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       debugPrint('[SIGNUP_PROVIDER] Repository signup success, auto-login');
       // 회원가입 후 자동 로그인 (이때 status가 authenticated로 변경됨)
-      return await login(loginId, password);
+      final loginSuccess = await login(loginId, password);
+      return {'success': loginSuccess};
     } on DioException catch (e) {
       final statusCode = e.response?.statusCode;
       final responseData = e.response?.data;
       final responseBody = responseData?.toString();
-      final errorMessage = e.message;
 
       debugPrint('[SIGNUP_PROVIDER] DioException: status=$statusCode');
 
-      // 실패 시 상세한 에러 정보 제공 (status는 그대로 유지하여 router redirect 방지)
+      // 에러 메시지 생성 (state에 저장하지 않음)
       String displayMessage;
       if (statusCode == 409) {
         final serverMessage = responseData is Map ? responseData['message'] ?? responseData['error'] : null;
@@ -215,29 +214,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
                  e.type == DioExceptionType.connectionTimeout) {
         displayMessage = '서버 연결 실패 (주소/포트 확인)';
       } else {
-        displayMessage = '오류 [${statusCode ?? "NO_STATUS"}]: $errorMessage';
+        displayMessage = '오류 [${statusCode ?? "NO_STATUS"}]: ${e.message}';
       }
 
-      // status는 변경하지 않고 error만 설정 (router redirect 방지)
-      state = state.copyWith(
-        error: displayMessage,
-        errorDetails: AuthErrorDetails(
-          statusCode: statusCode,
-          responseBody: responseBody,
-          errorMessage: errorMessage,
-        ),
-      );
-      return false;
+      // 에러를 Map으로 반환 (state 변경 없음)
+      return {
+        'success': false,
+        'error': displayMessage,
+        'statusCode': statusCode,
+      };
     } catch (e) {
       debugPrint('[SIGNUP_PROVIDER] Unknown error: $e');
-      // status는 변경하지 않고 error만 설정 (router redirect 방지)
-      state = state.copyWith(
-        error: '회원가입 실패: $e',
-        errorDetails: AuthErrorDetails(
-          errorMessage: e.toString(),
-        ),
-      );
-      return false;
+      return {
+        'success': false,
+        'error': '회원가입 실패: $e',
+      };
     }
   }
 
