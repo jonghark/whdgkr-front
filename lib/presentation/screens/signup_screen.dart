@@ -138,32 +138,32 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _signup() async {
-    print('### SIGNUP_BTN_CLICK ###');
-
-    // 1) 클릭 즉시 반응
-    ref.read(devDiagnosticProvider.notifier).buttonClicked('SIGNUP');
-    _showSnackBar('회원가입 버튼 클릭됨');
-
-    // 로딩 중이면 중복 클릭 방지
-    final authState = ref.read(authProvider);
-    if (authState.status == AuthStatus.loading) {
-      _showSnackBar('요청 처리 중입니다...', isError: true);
-      return;
-    }
-
-    // 2) 검증 실패 시 SnackBar
-    if (!_formKey.currentState!.validate()) {
-      ref.read(devDiagnosticProvider.notifier).validateFail('SIGNUP');
-      _showSnackBar('입력값을 확인해주세요 (이름/이메일/아이디/비번)', isError: true);
-      return;
-    }
-
-    // 3) API 호출 시작
-    print('### SIGNUP_CALL_START ###');
-    ref.read(devDiagnosticProvider.notifier).requestSent('/auth/signup');
-    _showSnackBar('회원가입 요청 중...');
+    // [A-1] 버튼 클릭 첫 줄 로그 (무조건 실행)
+    debugPrint('REGISTER_CLICK');
 
     try {
+      // 클릭 즉시 반응
+      ref.read(devDiagnosticProvider.notifier).buttonClicked('SIGNUP');
+      _showSnackBar('회원가입 요청 시작');
+
+      // 로딩 중이면 중복 클릭 방지
+      final authState = ref.read(authProvider);
+      if (authState.status == AuthStatus.loading) {
+        _showSnackBar('요청 처리 중입니다...', isError: true);
+        return;
+      }
+
+      // 검증 실패 시 SnackBar
+      if (!_formKey.currentState!.validate()) {
+        ref.read(devDiagnosticProvider.notifier).validateFail('SIGNUP');
+        _showSnackBar('입력값을 확인해주세요 (이름/이메일/아이디/비번)', isError: true);
+        return;
+      }
+
+      // API 호출 시작
+      ref.read(devDiagnosticProvider.notifier).requestSent('/auth/signup');
+      debugPrint('[SIGNUP] Calling authProvider.signup()');
+
       final success = await ref.read(authProvider.notifier).signup(
         loginId: _loginIdController.text.trim(),
         password: _passwordController.text,
@@ -171,9 +171,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         email: _emailController.text.trim(),
       );
 
-      print('### SIGNUP_CALL_DONE ### success=$success');
+      debugPrint('[SIGNUP] Result: $success');
 
-      // 4) 결과 알림
+      // 결과 처리
       if (success) {
         _showSnackBar('회원가입 성공!');
         if (mounted) {
@@ -184,10 +184,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         final errorMsg = authState.error ?? '회원가입 실패';
         _showSnackBar('회원가입 실패: $errorMsg', isError: true);
       }
-    } catch (e) {
-      print('### SIGNUP_CALL_FAIL ### $e');
-      _showSnackBar('회원가입 요청 실패: $e', isError: true);
-      rethrow;
+    } catch (e, stackTrace) {
+      debugPrint('[SIGNUP] Unexpected error: $e');
+      debugPrint('[SIGNUP] StackTrace: $stackTrace');
+      _showSnackBar('회원가입 중 오류 발생: $e', isError: true);
     }
   }
 

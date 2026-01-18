@@ -5,8 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:whdgkr/presentation/providers/auth_provider.dart';
 import 'package:whdgkr/presentation/providers/dev_diagnostic_provider.dart';
-import 'package:whdgkr/core/config/app_config.dart';
-import 'package:dio/dio.dart';
 
 /// 영문 소문자와 숫자만 허용하는 TextInputFormatter
 class LowercaseAlphanumericFormatter extends TextInputFormatter {
@@ -125,53 +123,54 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _login() async {
-    // 0) 무조건 첫 줄에 로그 (이벤트 도달 확인)
-    debugPrint('[DEV] LOGIN CLICKED - event reached');
+    // [A-1] 버튼 클릭 첫 줄 로그 (무조건 실행)
+    debugPrint('LOGIN_CLICK');
 
-    // 1) 클릭 즉시 반응
-    ref.read(devDiagnosticProvider.notifier).buttonClicked('LOGIN');
-    _showSnackBar('로그인 버튼 클릭됨');
-    print('[LOGIN] button clicked');
+    try {
+      // 클릭 즉시 반응
+      ref.read(devDiagnosticProvider.notifier).buttonClicked('LOGIN');
+      _showSnackBar('로그인 요청 시작');
 
-    // 로딩 중이면 중복 클릭 방지
-    final authState = ref.read(authProvider);
-    if (authState.status == AuthStatus.loading) {
-      _showSnackBar('요청 처리 중입니다...', isError: true);
-      return;
-    }
-
-    // 2) 검증 실패 시 SnackBar
-    if (!_formKey.currentState!.validate()) {
-      ref.read(devDiagnosticProvider.notifier).validateFail('LOGIN');
-      print('[LOGIN] validation failed');
-      _showSnackBar('입력값을 확인해주세요 (아이디/비번)', isError: true);
-      return;
-    }
-
-    // 3) API 호출 시작 알림
-    ref.read(devDiagnosticProvider.notifier).requestSent('/auth/login');
-    _showSnackBar('로그인 요청 중...');
-    debugPrint('[DEV] LOGIN FLOW START');
-    debugPrint('[DEV] REQUEST /auth/login');
-    print('[LOGIN] calling provider.login()');
-
-    final success = await ref.read(authProvider.notifier).login(
-      _loginIdController.text.trim(),
-      _passwordController.text,
-    );
-
-    print('[LOGIN] provider.login() returned: $success');
-
-    // 4) 결과 알림
-    if (success) {
-      _showSnackBar('로그인 성공!');
-      if (mounted) {
-        context.go('/');
-      }
-    } else {
+      // 로딩 중이면 중복 클릭 방지
       final authState = ref.read(authProvider);
-      final errorMsg = authState.error ?? '로그인 실패';
-      _showSnackBar('로그인 실패: $errorMsg', isError: true);
+      if (authState.status == AuthStatus.loading) {
+        _showSnackBar('요청 처리 중입니다...', isError: true);
+        return;
+      }
+
+      // 검증 실패 시 SnackBar
+      if (!_formKey.currentState!.validate()) {
+        ref.read(devDiagnosticProvider.notifier).validateFail('LOGIN');
+        _showSnackBar('입력값을 확인해주세요 (아이디/비번)', isError: true);
+        return;
+      }
+
+      // API 호출 시작
+      ref.read(devDiagnosticProvider.notifier).requestSent('/auth/login');
+      debugPrint('[LOGIN] Calling authProvider.login()');
+
+      final success = await ref.read(authProvider.notifier).login(
+        _loginIdController.text.trim(),
+        _passwordController.text,
+      );
+
+      debugPrint('[LOGIN] Result: $success');
+
+      // 결과 처리
+      if (success) {
+        _showSnackBar('로그인 성공!');
+        if (mounted) {
+          context.go('/');
+        }
+      } else {
+        final authState = ref.read(authProvider);
+        final errorMsg = authState.error ?? '로그인 실패';
+        _showSnackBar('로그인 실패: $errorMsg', isError: true);
+      }
+    } catch (e, stackTrace) {
+      debugPrint('[LOGIN] Unexpected error: $e');
+      debugPrint('[LOGIN] StackTrace: $stackTrace');
+      _showSnackBar('로그인 중 오류 발생: $e', isError: true);
     }
   }
 
@@ -313,8 +312,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
-                    ref.read(authProvider.notifier).clearError();
+                    debugPrint('SIGNUP_LINK_CLICKED');
                     context.go('/signup');
+                    debugPrint('NAVIGATING_TO_SIGNUP');
                   },
                   child: const Text('계정이 없으신가요? 회원가입'),
                 ),

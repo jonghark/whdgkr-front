@@ -20,6 +20,7 @@ class _FriendFormScreenState extends ConsumerState<FriendFormScreen> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
+  final _friendIdController = TextEditingController();
   bool _isLoading = false;
   bool _isInitialized = false;
 
@@ -30,6 +31,7 @@ class _FriendFormScreenState extends ConsumerState<FriendFormScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
+    _friendIdController.dispose();
     super.dispose();
   }
 
@@ -42,6 +44,7 @@ class _FriendFormScreenState extends ConsumerState<FriendFormScreen> {
         // 저장된 숫자를 포맷팅하여 표시
         _phoneController.text = PhoneNumberFormatter.format(friend.phone);
         _emailController.text = friend.email ?? '';
+        _friendIdController.text = friend.friendId;
         _isInitialized = true;
       } catch (e) {
         if (mounted) {
@@ -69,6 +72,7 @@ class _FriendFormScreenState extends ConsumerState<FriendFormScreen> {
         'name': _nameController.text.trim(),
         'phone': phoneNormalized.isEmpty ? null : phoneNormalized,
         'email': _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+        'friendId': _friendIdController.text.trim(),
       };
 
       if (isEditing) {
@@ -199,6 +203,28 @@ class _FriendFormScreenState extends ConsumerState<FriendFormScreen> {
                           if (!value.contains('@')) {
                             return '올바른 이메일 형식을 입력해주세요';
                           }
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _friendIdController,
+                      decoration: const InputDecoration(
+                        labelText: '친구 ID *',
+                        hintText: 'user1 (영문 소문자, 숫자만)',
+                        prefixIcon: Icon(Icons.badge_outlined),
+                        helperText: '친구의 로그인 ID를 입력하세요',
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9]')),
+                      ],
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return '친구 ID를 입력해주세요';
+                        }
+                        if (!RegExp(r'^[a-z0-9]+$').hasMatch(value)) {
+                          return '친구 ID는 영문 소문자와 숫자만 가능합니다';
                         }
                         return null;
                       },

@@ -22,6 +22,17 @@ final tripsProvider = FutureProvider<List<Trip>>((ref) async {
   return repository.getAllTrips();
 });
 
+final matchedTripsProvider = FutureProvider<List<Trip>>((ref) async {
+  // 로그인 전에는 보호 API 호출 차단
+  final authState = ref.watch(authProvider);
+  if (authState.status != AuthStatus.authenticated) {
+    return [];
+  }
+
+  final repository = ref.watch(tripRepositoryProvider);
+  return repository.getMatchedTrips();
+});
+
 final tripDetailProvider = FutureProvider.family<Trip, int>((ref, tripId) async {
   // 로그인 전에는 보호 API 호출 차단
   final authState = ref.watch(authProvider);

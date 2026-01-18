@@ -11,6 +11,7 @@ class TripListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tripsAsync = ref.watch(tripsProvider);
+    final matchedTripsAsync = ref.watch(matchedTripsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -69,12 +70,19 @@ class TripListScreen extends ConsumerWidget {
             );
           }
 
+          // 매칭된 여행 ID Set 생성 (빠른 조회를 위해)
+          final matchedTripIds = matchedTripsAsync.maybeWhen(
+            data: (matchedTrips) => matchedTrips.map((t) => t.id).toSet(),
+            orElse: () => <int>{},
+          );
+
           return ListView.builder(
             padding: const EdgeInsets.symmetric(vertical: 16),
             itemCount: trips.length,
             itemBuilder: (context, index) {
               final trip = trips[index];
               final dateFormat = DateFormat('yyyy-MM-dd');
+              final isMatched = matchedTripIds.contains(trip.id);
 
               return Card(
                 child: InkWell(
@@ -150,6 +158,38 @@ class TripListScreen extends ConsumerWidget {
                               ),
                             ),
                             const Spacer(),
+                            if (isMatched) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[50],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.group,
+                                      size: 14,
+                                      color: Colors.blue[700],
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '친구 매칭',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.blue[700],
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,

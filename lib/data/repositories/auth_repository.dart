@@ -14,18 +14,37 @@ class AuthRepository {
     receiveTimeout: const Duration(seconds: 3),
     headers: {'Content-Type': 'application/json'},
   )) {
-    // HTTP 요청/응답 로깅 인터셉터
+    // [A-3] HTTP 요청/응답 강화된 로깅 인터셉터
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
-        print('### HTTP_REQ ### ${options.method} ${options.baseUrl}${options.path}');
+        final fullUrl = '${options.baseUrl}${options.path}';
+        final hasAuth = options.headers.containsKey('Authorization');
+
+        debugPrint('[HTTP_REQ] ${options.method} $fullUrl');
+        debugPrint('[HTTP_REQ] path=${options.path}');
+        debugPrint('[HTTP_REQ] baseUrl=${options.baseUrl}');
+        debugPrint('[HTTP_REQ] authHeader=${hasAuth ? 'YES' : 'NO'}');
+        debugPrint('[HTTP_REQ] body=${options.data}');
+
         handler.next(options);
       },
       onResponse: (response, handler) {
-        print('### HTTP_RES ### ${response.statusCode} ${response.requestOptions.path}');
+        debugPrint('[HTTP_RES] ${response.statusCode} ${response.requestOptions.path}');
+        debugPrint('[HTTP_RES] body=${response.data}');
+
         handler.next(response);
       },
       onError: (error, handler) {
-        print('### HTTP_ERR ### ${error.response?.statusCode ?? "NO_RESPONSE"} ${error.requestOptions.path} ${error.message}');
+        final statusCode = error.response?.statusCode;
+        final path = error.requestOptions.path;
+        final message = error.message ?? 'No message';
+        final body = error.response?.data;
+
+        debugPrint('[HTTP_ERR] ${statusCode ?? 'NO_STATUS'} $path');
+        debugPrint('[HTTP_ERR] message=$message');
+        debugPrint('[HTTP_ERR] body=$body');
+        debugPrint('[HTTP_ERR] type=${error.type}');
+
         handler.next(error);
       },
     ));
@@ -37,8 +56,7 @@ class AuthRepository {
     required String name,
     required String email,
   }) async {
-    // [OBS] REPO 레이어 진입 확인
-    debugPrint('[OBS] REPO_ENTER signup');
+    // [A-4] path는 /auth/signup만 사용 (baseUrl에 이미 /api 포함)
     const endpoint = '/auth/signup';
     const method = 'POST';
     final body = {
@@ -48,14 +66,13 @@ class AuthRepository {
       'email': email,
     };
 
+    // URL 중복 방지 확인 로그
+    debugPrint('[REGISTER_URL] ${_dio.options.baseUrl}$endpoint');
+
     await AuthLogger.logRequest(endpoint: endpoint, method: method, body: body);
 
     try {
-      // [OBS] NET 레이어 - 요청 직전
-      debugPrint('[OBS] NET_SEND /auth/signup');
       final response = await _dio.post(endpoint, data: body);
-      // [OBS] NET 레이어 - 응답 수신
-      debugPrint('[OBS] NET_RESP status=${response.statusCode} error=null');
 
       await AuthLogger.logResponse(
         endpoint: endpoint,
@@ -66,8 +83,6 @@ class AuthRepository {
 
       return Member.fromJson(response.data);
     } on DioException catch (e, stackTrace) {
-      // [OBS] NET 레이어 - 에러 응답
-      debugPrint('[OBS] NET_RESP status=${e.response?.statusCode} error=${e.message}');
       await AuthLogger.logError(
         endpoint: endpoint,
         method: method,

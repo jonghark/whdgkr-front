@@ -42,19 +42,27 @@ final _routerProvider = Provider<GoRouter>((ref) {
       final isInitial = authState.status == AuthStatus.initial;
       final isAuthRoute = state.matchedLocation == '/login' || state.matchedLocation == '/signup';
 
+      debugPrint('[ROUTER] location=${state.matchedLocation}, auth=${authState.status}, isAuthRoute=$isAuthRoute');
+
       // 초기 또는 로딩 중에는 리다이렉트 하지 않음
-      if (isLoading || isInitial) return null;
+      if (isLoading || isInitial) {
+        debugPrint('[ROUTER] Skip redirect (loading or initial)');
+        return null;
+      }
 
       // 미인증 상태에서 인증 페이지가 아니면 로그인으로
       if (!isAuthenticated && !isAuthRoute) {
+        debugPrint('[ROUTER] Redirect to /login (not authenticated)');
         return '/login';
       }
 
       // 인증 상태에서 인증 페이지면 홈으로
       if (isAuthenticated && isAuthRoute) {
+        debugPrint('[ROUTER] Redirect to / (authenticated)');
         return '/';
       }
 
+      debugPrint('[ROUTER] No redirect');
       return null;
     },
     routes: [

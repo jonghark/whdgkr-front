@@ -3,6 +3,7 @@ class Friend {
   final String name;
   final String? email;
   final String? phone;
+  final String friendId;  // 친구의 로그인 ID
   final DateTime createdAt;
 
   Friend({
@@ -10,6 +11,7 @@ class Friend {
     required this.name,
     this.email,
     this.phone,
+    required this.friendId,
     required this.createdAt,
   });
 
@@ -19,6 +21,7 @@ class Friend {
       name: json['name'] as String,
       email: json['email'] as String?,
       phone: json['phone'] as String?,
+      friendId: json['friendId'] as String? ?? '',
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }
@@ -29,6 +32,7 @@ class Friend {
       'name': name,
       'email': email,
       'phone': phone,
+      'friendId': friendId,
     };
   }
 }

@@ -31,6 +31,18 @@ class TripRepository {
     }
   }
 
+  Future<List<Trip>> getMatchedTrips() async {
+    try {
+      debugPrint('[TripRepository.getMatchedTrips] API call start');
+      final response = await _apiClient.dio.get('/trips/matched');
+      debugPrint('[TripRepository.getMatchedTrips] Success: ${response.data}');
+      return (response.data as List).map((t) => Trip.fromJson(t)).toList();
+    } catch (e, stackTrace) {
+      _logError('getMatchedTrips', e, stackTrace);
+      throw Exception('Failed to load matched trips: $e');
+    }
+  }
+
   Future<Trip> createTrip(Map<String, dynamic> tripData) async {
     try {
       debugPrint('[TripRepository.createTrip] API call: $tripData');

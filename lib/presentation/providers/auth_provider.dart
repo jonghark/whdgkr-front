@@ -106,6 +106,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<bool> login(String loginId, String password) async {
+    // [A-2] try/finally 구조로 loading 상태 고정 방지
     state = state.copyWith(status: AuthStatus.loading, error: null, errorDetails: null);
 
     try {
@@ -123,18 +124,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final responseBody = e.response?.data?.toString();
       final errorMessage = e.message;
 
+      // [A-5] 실패 시 먹통 금지 - 상세한 에러 정보 제공
       String displayMessage;
       if (statusCode == 401) {
-        displayMessage = '아이디 또는 비밀번호가 올바르지 않습니다';
+        displayMessage = '아이디 또는 비밀번호가 올바르지 않습니다 [401]';
       } else if (statusCode == 400) {
-        displayMessage = '입력값을 확인해주세요';
+        displayMessage = '입력값을 확인해주세요 [400]';
       } else if (statusCode == 500) {
-        displayMessage = '서버 오류가 발생했습니다 (잠시 후 재시도)';
+        displayMessage = '서버 오류가 발생했습니다 [500]';
       } else if (e.type == DioExceptionType.connectionError ||
                  e.type == DioExceptionType.connectionTimeout) {
-        displayMessage = '서버에 연결할 수 없습니다 (주소/포트 확인)';
+        displayMessage = '서버 연결 실패 (주소/포트 확인)';
       } else {
-        displayMessage = '오류가 발생했습니다: ${statusCode ?? "알 수 없음"}';
+        displayMessage = '오류 [${statusCode ?? "NO_STATUS"}]: $errorMessage';
       }
 
       state = state.copyWith(
@@ -150,12 +152,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (e) {
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
-        error: '로그인에 실패했습니다',
+        error: '로그인 실패: $e',
         errorDetails: AuthErrorDetails(
           errorMessage: e.toString(),
         ),
       );
       return false;
+    } finally {
+      // [A-2] loading 상태가 고정되지 않도록 보장
+      if (state.status == AuthStatus.loading) {
+        state = state.copyWith(status: AuthStatus.unauthenticated);
+      }
     }
   }
 
@@ -165,47 +172,49 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String name,
     required String email,
   }) async {
-    // [OBS] STATE 레이어 진입 확인
-    debugPrint('[OBS] STATE_ENTER signup');
+    // [A-2] try/finally 구조로 loading 상태 고정 방지
+    debugPrint('[SIGNUP_PROVIDER] Enter');
     state = state.copyWith(status: AuthStatus.loading, error: null, errorDetails: null);
 
     try {
-      debugPrint('[OBS] STATE_CALL_REPO signup');
+      debugPrint('[SIGNUP_PROVIDER] Calling repository.signup()');
       await _authRepository.signup(
         loginId: loginId,
         password: password,
         name: name,
         email: email,
       );
+      debugPrint('[SIGNUP_PROVIDER] Repository signup success, auto-login');
       // 회원가입 후 자동 로그인
       return await login(loginId, password);
     } on DioException catch (e) {
-      debugPrint('[OBS] STATE_ERROR signup status=${e.response?.statusCode}');
       final statusCode = e.response?.statusCode;
       final responseData = e.response?.data;
       final responseBody = responseData?.toString();
       final errorMessage = e.message;
 
+      debugPrint('[SIGNUP_PROVIDER] DioException: status=$statusCode');
+
+      // [A-5] 실패 시 먹통 금지 - 상세한 에러 정보 제공
       String displayMessage;
       if (statusCode == 409) {
-        // 서버 응답에서 구체적인 메시지 추출
         final serverMessage = responseData is Map ? responseData['message'] ?? responseData['error'] : null;
         if (serverMessage != null && serverMessage.toString().toLowerCase().contains('email')) {
-          displayMessage = '이미 사용 중인 이메일입니다';
+          displayMessage = '이미 사용 중인 이메일입니다 [409]';
         } else if (serverMessage != null && serverMessage.toString().toLowerCase().contains('login')) {
-          displayMessage = '이미 사용 중인 아이디입니다';
+          displayMessage = '이미 사용 중인 아이디입니다 [409]';
         } else {
-          displayMessage = '이미 사용 중인 아이디 또는 이메일입니다';
+          displayMessage = '이미 사용 중인 아이디 또는 이메일입니다 [409]';
         }
       } else if (statusCode == 400) {
-        displayMessage = '입력값을 확인해주세요';
+        displayMessage = '입력값을 확인해주세요 [400]';
       } else if (statusCode == 500) {
-        displayMessage = '서버 오류가 발생했습니다 (잠시 후 재시도)';
+        displayMessage = '서버 오류 [500]: $responseBody';
       } else if (e.type == DioExceptionType.connectionError ||
                  e.type == DioExceptionType.connectionTimeout) {
-        displayMessage = '서버에 연결할 수 없습니다 (주소/포트 확인)';
+        displayMessage = '서버 연결 실패 (주소/포트 확인)';
       } else {
-        displayMessage = '오류가 발생했습니다: ${statusCode ?? "알 수 없음"}';
+        displayMessage = '오류 [${statusCode ?? "NO_STATUS"}]: $errorMessage';
       }
 
       state = state.copyWith(
@@ -219,15 +228,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return false;
     } catch (e) {
-      debugPrint('[OBS] STATE_ERROR signup unknown=$e');
+      debugPrint('[SIGNUP_PROVIDER] Unknown error: $e');
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
-        error: '회원가입에 실패했습니다',
+        error: '회원가입 실패: $e',
         errorDetails: AuthErrorDetails(
           errorMessage: e.toString(),
         ),
       );
       return false;
+    } finally {
+      // [A-2] loading 상태가 고정되지 않도록 보장
+      if (state.status == AuthStatus.loading) {
+        state = state.copyWith(status: AuthStatus.unauthenticated);
+      }
     }
   }
 
