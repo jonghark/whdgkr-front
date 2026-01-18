@@ -52,12 +52,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     // 사용자가 아이디 필드를 수정하면 에러 메시지 자동 제거
     _loginIdController.addListener(() {
+      if (!mounted) return;
       final authState = ref.read(authProvider);
       if (authState.error != null) {
         ref.read(authProvider.notifier).clearError();
@@ -153,24 +155,26 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     // [A-1] 버튼 클릭 첫 줄 로그 (무조건 실행)
     debugPrint('REGISTER_CLICK');
 
+    // 로딩 중이면 중복 클릭 방지
+    if (_isLoading) {
+      _showSnackBar('요청 처리 중입니다...', isError: true);
+      return;
+    }
+
+    // 검증 실패 시 SnackBar
+    if (!_formKey.currentState!.validate()) {
+      ref.read(devDiagnosticProvider.notifier).validateFail('SIGNUP');
+      _showSnackBar('입력값을 확인해주세요 (이름/이메일/아이디/비번)', isError: true);
+      return;
+    }
+
+    // 로딩 상태 시작
+    setState(() => _isLoading = true);
+
     try {
       // 클릭 즉시 반응
       ref.read(devDiagnosticProvider.notifier).buttonClicked('SIGNUP');
       _showSnackBar('회원가입 요청 시작');
-
-      // 로딩 중이면 중복 클릭 방지
-      final authState = ref.read(authProvider);
-      if (authState.status == AuthStatus.loading) {
-        _showSnackBar('요청 처리 중입니다...', isError: true);
-        return;
-      }
-
-      // 검증 실패 시 SnackBar
-      if (!_formKey.currentState!.validate()) {
-        ref.read(devDiagnosticProvider.notifier).validateFail('SIGNUP');
-        _showSnackBar('입력값을 확인해주세요 (이름/이메일/아이디/비번)', isError: true);
-        return;
-      }
 
       // API 호출 시작
       ref.read(devDiagnosticProvider.notifier).requestSent('/auth/signup');
@@ -185,6 +189,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
       debugPrint('[SIGNUP] Result: $success');
 
+      // await 후 반드시 mounted 체크 (ref after disposed 방지)
+      if (!mounted) return;
+
       // 결과 처리
       if (success) {
         _showSnackBar('회원가입 성공!');
@@ -192,6 +199,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           context.go('/');
         }
       } else {
+        // 실패 시 에러 메시지만 표시하고 현재 페이지 유지
+        if (!mounted) return;
         final authState = ref.read(authProvider);
         final errorMsg = authState.error ?? '회원가입 실패';
         _showSnackBar('회원가입 실패: $errorMsg', isError: true);
@@ -199,7 +208,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     } catch (e, stackTrace) {
       debugPrint('[SIGNUP] Unexpected error: $e');
       debugPrint('[SIGNUP] StackTrace: $stackTrace');
+      if (!mounted) return;
       _showSnackBar('회원가입 중 오류 발생: $e', isError: true);
+    } finally {
+      // 로딩 상태 종료 (mounted 체크 후)
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -395,10 +410,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 ],
                 const SizedBox(height: 24),
                 FilledButton(
-                  onPressed: _signup,  // 항상 활성화 - 조건부 null 제거
+                  onPressed: _isLoading ? null : _signup,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: authState.status == AuthStatus.loading
+                    child: _isLoading
                         ? const SizedBox(
                             width: 20,
                             height: 20,

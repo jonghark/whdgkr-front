@@ -172,9 +172,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String name,
     required String email,
   }) async {
-    // [A-2] try/finally 구조로 loading 상태 고정 방지
+    // 회원가입은 전역 auth status를 변경하지 않음 (router redirect 방지)
+    // 에러 메시지만 state에 저장하고, 성공 시에만 login()을 호출하여 인증 상태 변경
     debugPrint('[SIGNUP_PROVIDER] Enter');
-    state = state.copyWith(status: AuthStatus.loading, error: null, errorDetails: null);
+    state = state.copyWith(error: null, errorDetails: null);
 
     try {
       debugPrint('[SIGNUP_PROVIDER] Calling repository.signup()');
@@ -185,7 +186,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: email,
       );
       debugPrint('[SIGNUP_PROVIDER] Repository signup success, auto-login');
-      // 회원가입 후 자동 로그인
+      // 회원가입 후 자동 로그인 (이때 status가 authenticated로 변경됨)
       return await login(loginId, password);
     } on DioException catch (e) {
       final statusCode = e.response?.statusCode;
@@ -195,7 +196,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       debugPrint('[SIGNUP_PROVIDER] DioException: status=$statusCode');
 
-      // [A-5] 실패 시 먹통 금지 - 상세한 에러 정보 제공
+      // 실패 시 상세한 에러 정보 제공 (status는 그대로 유지하여 router redirect 방지)
       String displayMessage;
       if (statusCode == 409) {
         final serverMessage = responseData is Map ? responseData['message'] ?? responseData['error'] : null;
@@ -217,8 +218,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         displayMessage = '오류 [${statusCode ?? "NO_STATUS"}]: $errorMessage';
       }
 
+      // status는 변경하지 않고 error만 설정 (router redirect 방지)
       state = state.copyWith(
-        status: AuthStatus.unauthenticated,
         error: displayMessage,
         errorDetails: AuthErrorDetails(
           statusCode: statusCode,
@@ -229,19 +230,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return false;
     } catch (e) {
       debugPrint('[SIGNUP_PROVIDER] Unknown error: $e');
+      // status는 변경하지 않고 error만 설정 (router redirect 방지)
       state = state.copyWith(
-        status: AuthStatus.unauthenticated,
         error: '회원가입 실패: $e',
         errorDetails: AuthErrorDetails(
           errorMessage: e.toString(),
         ),
       );
       return false;
-    } finally {
-      // [A-2] loading 상태가 고정되지 않도록 보장
-      if (state.status == AuthStatus.loading) {
-        state = state.copyWith(status: AuthStatus.unauthenticated);
-      }
     }
   }
 
