@@ -11,6 +11,7 @@ class ParticipantInput {
   TextEditingController nameController = TextEditingController();
   TextEditingController phoneController = TextEditingController();
   TextEditingController emailController = TextEditingController();
+  int? friendId;
 
   void dispose() {
     nameController.dispose();
@@ -50,6 +51,136 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
     });
   }
 
+  void _showAddParticipantOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.people, color: AppTheme.primaryGreen),
+              title: const Text('친구 목록에서 선택'),
+              onTap: () {
+                Navigator.pop(context);
+                _showFriendSelectionDialog();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit, color: AppTheme.primaryGreen),
+              title: const Text('직접 입력'),
+              onTap: () {
+                Navigator.pop(context);
+                _addParticipant();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFriendSelectionDialog() {
+    final friendsAsync = ref.read(friendsProvider);
+
+    friendsAsync.when(
+      data: (friends) {
+        if (friends.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('등록된 친구가 없습니다'),
+              backgroundColor: AppTheme.negativeRed,
+            ),
+          );
+          return;
+        }
+
+        final selectedFriendIds = _participants
+            .where((p) => p.friendId != null)
+            .map((p) => p.friendId!)
+            .toSet();
+
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('친구 선택'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: friends.length,
+                itemBuilder: (context, index) {
+                  final friend = friends[index];
+                  final isAlreadyAdded = selectedFriendIds.contains(friend.id);
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: isAlreadyAdded ? Colors.grey : AppTheme.lightGreen,
+                      child: Text(
+                        friend.name[0],
+                        style: TextStyle(
+                          color: isAlreadyAdded ? Colors.white : AppTheme.primaryGreen,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    title: Text(friend.name),
+                    subtitle: Text(
+                      [friend.email, friend.phone].where((e) => e != null && e.isNotEmpty).join(' • '),
+                    ),
+                    trailing: isAlreadyAdded
+                        ? const Chip(
+                            label: Text('이미 추가됨', style: TextStyle(fontSize: 10)),
+                            backgroundColor: Colors.grey,
+                          )
+                        : null,
+                    enabled: !isAlreadyAdded,
+                    onTap: isAlreadyAdded
+                        ? null
+                        : () {
+                            Navigator.pop(context);
+                            _addParticipantFromFriend(friend);
+                          },
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('취소'),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('친구 목록 로딩 중...')),
+        );
+      },
+      error: (error, stack) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('친구 목록 로딩 실패: $error'),
+            backgroundColor: AppTheme.negativeRed,
+          ),
+        );
+      },
+    );
+  }
+
+  void _addParticipantFromFriend(friend) {
+    setState(() {
+      final participant = ParticipantInput();
+      participant.friendId = friend.id;
+      participant.nameController.text = friend.name;
+      participant.phoneController.text = friend.phone ?? '';
+      participant.emailController.text = friend.email ?? '';
+      _participants.add(participant);
+    });
+  }
+
   void _removeParticipant(int index) {
     if (_participants.length <= 1) return;
 
@@ -77,12 +208,16 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
           if (name.isEmpty) return null;
           // 전화번호는 숫자만 저장
           final phoneNormalized = PhoneNumberFormatter.normalize(p.phoneController.text);
-          return {
+          final result = {
             'name': name,
             'phone': phoneNormalized.isEmpty ? null : phoneNormalized,
             'email': p.emailController.text.trim().isEmpty ? null : p.emailController.text.trim(),
             'isOwner': index == _ownerIndex,
           };
+          if (p.friendId != null) {
+            result['friendId'] = p.friendId;
+          }
+          return result;
         })
         .where((p) => p != null)
         .toList();
@@ -305,7 +440,7 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.add_circle, color: AppTheme.primaryGreen),
-                          onPressed: _addParticipant,
+                          onPressed: _showAddParticipantOptions,
                         ),
                       ],
                     ),
@@ -359,6 +494,31 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
                                       ),
                                     ),
                                   ),
+                                if (participant.friendId != null) ...[
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.shade50,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.people, size: 12, color: Colors.blue.shade700),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '친구',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.blue.shade700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                                 const Spacer(),
                                 if (_participants.length > 1)
                                   IconButton(
