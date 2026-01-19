@@ -32,8 +32,7 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
   final _nameController = TextEditingController();
   DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now().add(const Duration(days: 1));
-  final List<ParticipantInput> _participants = [ParticipantInput()];
-  int _ownerIndex = 0;
+  final List<ParticipantInput> _participants = [];
   bool _isLoading = false;
 
   @override
@@ -182,37 +181,25 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
   }
 
   void _removeParticipant(int index) {
-    if (_participants.length <= 1) return;
-
     setState(() {
       _participants[index].dispose();
       _participants.removeAt(index);
-      if (_ownerIndex >= _participants.length) {
-        _ownerIndex = 0;
-      } else if (_ownerIndex == index) {
-        _ownerIndex = 0;
-      } else if (_ownerIndex > index) {
-        _ownerIndex--;
-      }
     });
   }
 
   Future<void> _createTrip() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final participantsList = _participants.asMap().entries
-        .map((entry) {
-          final index = entry.key;
-          final p = entry.value;
+    final participantsList = _participants
+        .map((p) {
           final name = p.nameController.text.trim();
           if (name.isEmpty) return null;
           // 전화번호는 숫자만 저장
           final phoneNormalized = PhoneNumberFormatter.normalize(p.phoneController.text);
-          final result = {
+          final result = <String, dynamic>{
             'name': name,
             'phone': phoneNormalized.isEmpty ? null : phoneNormalized,
             'email': p.emailController.text.trim().isEmpty ? null : p.emailController.text.trim(),
-            'isOwner': index == _ownerIndex,
           };
           if (p.friendId != null) {
             result['friendId'] = p.friendId;
@@ -221,16 +208,6 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
         })
         .where((p) => p != null)
         .toList();
-
-    if (participantsList.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('동행자를 한 명 이상 추가해주세요'),
-          backgroundColor: AppTheme.negativeRed,
-        ),
-      );
-      return;
-    }
 
     setState(() => _isLoading = true);
 
@@ -444,11 +421,6 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      '대표를 선택해주세요. 나눠떨어지지 않는 금액은 대표에게 귀속됩니다.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
                     const SizedBox(height: 16),
                     ..._participants.asMap().entries.map((entry) {
                       final index = entry.key;
@@ -458,8 +430,8 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: _ownerIndex == index ? AppTheme.primaryGreen : Colors.grey.shade300,
-                            width: _ownerIndex == index ? 2 : 1,
+                            color: Colors.grey.shade300,
+                            width: 1,
                           ),
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -467,33 +439,6 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
                           children: [
                             Row(
                               children: [
-                                Radio<int>(
-                                  value: index,
-                                  groupValue: _ownerIndex,
-                                  activeColor: AppTheme.primaryGreen,
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      setState(() => _ownerIndex = value);
-                                    }
-                                  },
-                                ),
-                                const SizedBox(width: 4),
-                                if (_ownerIndex == index)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.lightGreen,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Text(
-                                      '대표',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.primaryGreen,
-                                      ),
-                                    ),
-                                  ),
                                 if (participant.friendId != null) ...[
                                   const SizedBox(width: 4),
                                   Container(
@@ -520,13 +465,12 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
                                   ),
                                 ],
                                 const Spacer(),
-                                if (_participants.length > 1)
-                                  IconButton(
-                                    icon: const Icon(Icons.remove_circle, color: AppTheme.negativeRed, size: 20),
-                                    onPressed: () => _removeParticipant(index),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                  ),
+                                IconButton(
+                                  icon: const Icon(Icons.remove_circle, color: AppTheme.negativeRed, size: 20),
+                                  onPressed: () => _removeParticipant(index),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 8),

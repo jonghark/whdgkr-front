@@ -84,17 +84,84 @@ class TripListScreen extends ConsumerWidget {
               final dateFormat = DateFormat('yyyy-MM-dd');
               final isMatched = matchedTripIds.contains(trip.id);
 
-              return Card(
-                child: InkWell(
-                  onTap: () {
-                    context.push('/trip/${trip.id}');
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+              return Dismissible(
+                key: Key('trip_${trip.id}'),
+                direction: DismissDirection.endToStart,
+                confirmDismiss: (direction) async {
+                  return await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('여행 삭제'),
+                      content: Text('${trip.name}을(를) 삭제하시겠습니까?\n모든 지출 내역도 함께 삭제됩니다.'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('취소'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppTheme.negativeRed,
+                          ),
+                          child: const Text('삭제'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                onDismissed: (direction) async {
+                  try {
+                    final repository = ref.read(tripRepositoryProvider);
+                    await repository.deleteTrip(trip.id);
+                    ref.invalidate(tripsProvider);
+                    ref.invalidate(matchedTripsProvider);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${trip.name}이(가) 삭제되었습니다'),
+                          backgroundColor: AppTheme.positiveGreen,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    ref.invalidate(tripsProvider);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('삭제 실패: $e'),
+                          backgroundColor: AppTheme.negativeRed,
+                        ),
+                      );
+                    }
+                  }
+                },
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  decoration: BoxDecoration(
+                    color: AppTheme.negativeRed,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.delete, color: Colors.white, size: 32),
+                      SizedBox(height: 4),
+                      Text('삭제', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+                child: Card(
+                  child: InkWell(
+                    onTap: () {
+                      context.push('/trip/${trip.id}');
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                         Row(
                           children: [
                             Container(
@@ -214,8 +281,9 @@ class TripListScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-              );
-            },
+              ),
+            );
+          },
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
