@@ -28,7 +28,7 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
   bool _isInitialized = false;
   ExpenseViewMode _viewMode = ExpenseViewMode.view;
 
-  String _splitType = 'equal';
+  String _settleType = 'equal';
   int? _selectedPayerId;
   Map<int, bool> _selectedShareholders = {};
   Map<int, TextEditingController> _customShareControllers = {};
@@ -147,7 +147,7 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
       remainderRecipientId ??= firstParticipantId;
 
       List<Map<String, dynamic>> shares;
-      if (_splitType == 'equal') {
+      if (_settleType == 'equal') {
         final shareAmount = totalAmount ~/ selectedShareholderIds.length;
         final remainder = totalAmount % selectedShareholderIds.length;
 
@@ -436,12 +436,12 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
                             ButtonSegment(value: 'equal', label: Text('균등'), icon: Icon(Icons.people)),
                             ButtonSegment(value: 'custom', label: Text('직접 입력'), icon: Icon(Icons.tune)),
                           ],
-                          selected: {_splitType},
+                          selected: {_settleType},
                           onSelectionChanged: (Set<String> selection) {
                             setState(() {
-                              _splitType = selection.first;
+                              _settleType = selection.first;
                               // 직접입력 모드로 전환 시 균등 분배값으로 초기화
-                              if (_splitType == 'custom') {
+                              if (_settleType == 'custom') {
                                 _recalculateCustomShares(activeParticipants);
                               }
                             });
@@ -451,7 +451,7 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
                         ...activeParticipants.map((participant) {
                           return CheckboxListTile(
                             title: Text(participant.name),
-                            subtitle: _splitType == 'equal'
+                            subtitle: _settleType == 'equal'
                                 ? null
                                 : TextField(
                                     controller: _customShareControllers[participant.id],
@@ -465,7 +465,7 @@ class _EditExpenseScreenState extends ConsumerState<EditExpenseScreen> {
                               setState(() {
                                 _selectedShareholders[participant.id] = value ?? false;
                                 // 직접입력 모드에서 체크 변경 시 균등 분배 재계산
-                                if (_splitType == 'custom') {
+                                if (_settleType == 'custom') {
                                   _recalculateCustomShares(activeParticipants);
                                 }
                               });

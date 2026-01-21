@@ -100,6 +100,13 @@ class TripDetailScreen extends ConsumerWidget {
         title: const Text('여행 상세', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
+            icon: const Icon(Icons.bar_chart),
+            tooltip: '지출 통계',
+            onPressed: () {
+              context.push('/trip/$tripId/statistics');
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.calculate_outlined),
             tooltip: '정산 상세',
             onPressed: () {

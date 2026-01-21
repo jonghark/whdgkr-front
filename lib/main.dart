@@ -18,6 +18,7 @@ import 'package:whdgkr/presentation/screens/debug_screen.dart';
 import 'package:whdgkr/presentation/screens/login_screen.dart';
 import 'package:whdgkr/presentation/screens/signup_screen.dart';
 import 'package:whdgkr/presentation/screens/reset_password_screen.dart';
+import 'package:whdgkr/presentation/screens/statistics_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -117,6 +118,13 @@ final _routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = int.parse(state.pathParameters['id']!);
           return SettlementScreen(tripId: id);
+        },
+      ),
+      GoRoute(
+        path: '/trip/:id/statistics',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return StatisticsScreen(tripId: id);
         },
       ),
       GoRoute(

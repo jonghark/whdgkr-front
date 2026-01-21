@@ -4,6 +4,7 @@ class Expense {
   final DateTime occurredAt;
   final int totalAmount;
   final String currency;
+  final String category;
   final DateTime createdAt;
   final String settledYn;
   final DateTime? settledAt;
@@ -16,6 +17,7 @@ class Expense {
     required this.occurredAt,
     required this.totalAmount,
     required this.currency,
+    required this.category,
     required this.createdAt,
     required this.settledYn,
     this.settledAt,
@@ -32,6 +34,7 @@ class Expense {
       occurredAt: DateTime.parse(json['occurredAt'] as String),
       totalAmount: json['totalAmount'] as int,
       currency: json['currency'] as String? ?? 'KRW',
+      category: json['category'] as String? ?? 'OTHER',
       createdAt: DateTime.parse(json['createdAt'] as String),
       settledYn: json['settledYn'] as String? ?? 'N',
       settledAt: json['settledAt'] != null
@@ -75,6 +78,44 @@ class Expense {
     final representative = sorted.first.participantName;
     final othersCount = payments.length - 1;
     return '$representative 외 $othersCount명';
+  }
+
+  /// 카테고리 아이콘
+  String get categoryIcon {
+    switch (category) {
+      case 'FOOD':
+        return '🍴';
+      case 'ACCOMMODATION':
+        return '🏨';
+      case 'TRANSPORTATION':
+        return '🚗';
+      case 'ENTERTAINMENT':
+        return '🎭';
+      case 'SHOPPING':
+        return '🛍️';
+      case 'OTHER':
+      default:
+        return '📝';
+    }
+  }
+
+  /// 카테고리 한글명
+  String get categoryName {
+    switch (category) {
+      case 'FOOD':
+        return '식비';
+      case 'ACCOMMODATION':
+        return '숙박';
+      case 'TRANSPORTATION':
+        return '교통';
+      case 'ENTERTAINMENT':
+        return '관광';
+      case 'SHOPPING':
+        return '쇼핑';
+      case 'OTHER':
+      default:
+        return '기타';
+    }
   }
 }
 

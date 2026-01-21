@@ -42,7 +42,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   DateTime? _expenseDate;
   bool _isLoading = false;
 
-  String _splitType = 'equal';
+  String _settleType = 'equal';
+  String _selectedCategory = 'OTHER';
   int? _selectedPayerId;
   Map<int, bool> _selectedShareholders = {};
   Map<int, TextEditingController> _customShareControllers = {};
@@ -175,7 +176,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
       // shares 구성
       List<Map<String, dynamic>> shares;
-      if (_splitType == 'equal') {
+      if (_settleType == 'equal') {
         final shareAmount = totalAmount ~/ selectedShareholderIds.length;
         final remainder = totalAmount % selectedShareholderIds.length;
 
@@ -210,6 +211,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         'occurredAt': '${_dateFormat.format(_expenseDate!)}T12:00:00',
         'totalAmount': totalAmount,
         'currency': 'KRW',
+        'category': _selectedCategory,
         'payments': payments,
         'shares': shares,
       };
@@ -321,6 +323,27 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
+                        DropdownButtonFormField<String>(
+                          value: _selectedCategory,
+                          decoration: const InputDecoration(
+                            labelText: '카테고리',
+                            prefixIcon: Icon(Icons.category),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'FOOD', child: Text('🍴 식비')),
+                            DropdownMenuItem(value: 'ACCOMMODATION', child: Text('🏨 숙박')),
+                            DropdownMenuItem(value: 'TRANSPORTATION', child: Text('🚗 교통')),
+                            DropdownMenuItem(value: 'ENTERTAINMENT', child: Text('🎭 관광')),
+                            DropdownMenuItem(value: 'SHOPPING', child: Text('🛍️ 쇼핑')),
+                            DropdownMenuItem(value: 'OTHER', child: Text('📝 기타')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _selectedCategory = value);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 16),
                         InkWell(
                           onTap: () async {
                             final date = await showDatePicker(
@@ -411,22 +434,43 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             ButtonSegment(value: 'equal', label: Text('균등'), icon: Icon(Icons.people)),
                             ButtonSegment(value: 'custom', label: Text('직접 입력'), icon: Icon(Icons.tune)),
                           ],
-                          selected: {_splitType},
+                          selected: {_settleType},
                           onSelectionChanged: (Set<String> selection) {
                             setState(() {
-                              _splitType = selection.first;
+                              _settleType = selection.first;
                               // 직접입력 모드로 전환 시 균등 분배값으로 초기화
-                              if (_splitType == 'custom') {
+                              if (_settleType == 'custom') {
                                 _recalculateCustomShares(activeParticipants);
                               }
                             });
                           },
                         ),
                         const SizedBox(height: 16),
+                        if (_settleType == 'custom')
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                // 모든 동행자 선택
+                                setState(() {
+                                  for (var p in activeParticipants) {
+                                    _selectedShareholders[p.id] = true;
+                                  }
+                                  _recalculateCustomShares(activeParticipants);
+                                });
+                              },
+                              icon: const Icon(Icons.calculate, size: 18),
+                              label: const Text('균등 분할'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppTheme.primaryGreen,
+                                side: const BorderSide(color: AppTheme.primaryGreen),
+                              ),
+                            ),
+                          ),
                         ...activeParticipants.map((participant) {
                           return CheckboxListTile(
                             title: Text(participant.name),
-                            subtitle: _splitType == 'equal'
+                            subtitle: _settleType == 'equal'
                                 ? null
                                 : TextField(
                                     controller: _customShareControllers[participant.id],
@@ -447,7 +491,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               setState(() {
                                 _selectedShareholders[participant.id] = value ?? false;
                                 // 직접입력 모드에서 체크 변경 시 균등 분배 재계산
-                                if (_splitType == 'custom') {
+                                if (_settleType == 'custom') {
                                   _recalculateCustomShares(activeParticipants);
                                 }
                               });

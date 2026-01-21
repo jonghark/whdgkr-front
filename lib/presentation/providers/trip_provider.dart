@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whdgkr/core/network/api_client.dart';
 import 'package:whdgkr/data/models/trip.dart';
 import 'package:whdgkr/data/models/settlement.dart';
+import 'package:whdgkr/data/models/statistics.dart';
 import 'package:whdgkr/data/repositories/trip_repository.dart';
 import 'package:whdgkr/presentation/providers/auth_provider.dart';
 
@@ -54,4 +55,16 @@ final settlementProvider = FutureProvider.family<Settlement, int>((ref, tripId) 
 
   final repository = ref.watch(tripRepositoryProvider);
   return repository.getSettlement(tripId);
+});
+
+/// 통계 데이터 Provider
+final statisticsProvider = FutureProvider.family<Statistics, int>((ref, tripId) async {
+  // 로그인 전에는 보호 API 호출 차단
+  final authState = ref.watch(authProvider);
+  if (authState.status != AuthStatus.authenticated) {
+    throw Exception('로그인이 필요합니다');
+  }
+
+  final repository = ref.watch(tripRepositoryProvider);
+  return repository.getStatistics(tripId);
 });

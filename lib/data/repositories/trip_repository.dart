@@ -3,6 +3,7 @@ import 'package:whdgkr/core/network/api_client.dart';
 import 'package:whdgkr/data/models/trip.dart';
 import 'package:whdgkr/data/models/expense.dart';
 import 'package:whdgkr/data/models/settlement.dart';
+import 'package:whdgkr/data/models/statistics.dart';
 
 class TripRepository {
   final ApiClient _apiClient;
@@ -169,6 +170,18 @@ class TripRepository {
     } catch (e, stackTrace) {
       _logError('updateExpenseSettled', e, stackTrace);
       throw Exception('Failed to update expense settled status: $e');
+    }
+  }
+
+  Future<Statistics> getStatistics(int tripId) async {
+    try {
+      debugPrint('[TripRepository.getStatistics] API call: tripId=$tripId');
+      final response = await _apiClient.dio.get('/trips/$tripId/statistics');
+      debugPrint('[TripRepository.getStatistics] Success: ${response.data}');
+      return Statistics.fromJson(response.data);
+    } catch (e, stackTrace) {
+      _logError('getStatistics', e, stackTrace);
+      throw Exception('Failed to load statistics: $e');
     }
   }
 }
