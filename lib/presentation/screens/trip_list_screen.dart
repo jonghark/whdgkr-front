@@ -15,7 +15,7 @@ class TripListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('내 여행', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('내 트립', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_circle_outline, size: 28),

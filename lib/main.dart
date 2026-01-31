@@ -275,7 +275,7 @@ class MainShell extends ConsumerWidget {
           const NavigationDestination(
             icon: Icon(Icons.card_travel_outlined),
             selectedIcon: Icon(Icons.card_travel),
-            label: '여행',
+            label: '트립',
           ),
           const NavigationDestination(
             icon: Icon(Icons.people_outline),
@@ -296,6 +296,6 @@ class MainShell extends ConsumerWidget {
   String _getTitle(String location) {
     if (location == '/friends') return '친구';
     if (location == '/debug') return '개발자 도구';
-    return '여행';
+    return '트립';
   }
 }
